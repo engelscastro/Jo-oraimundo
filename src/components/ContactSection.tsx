@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { Mail, Phone, MapPin, MessageCircle, Send, CheckCircle2, Calendar } from 'lucide-react';
-import { BROKER_INFO } from '../data/properties';
+import { BROKER_INFO, MACEIO_BAIRROS_BY_REGION } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 export const ContactSection: React.FC = () => {
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -29,7 +33,7 @@ export const ContactSection: React.FC = () => {
 - Bairro de Preferência: ${neighborhood}
 - Mensagem: ${message || 'Gostaria de agendar um atendimento personalizado.'}`;
 
-    window.open(`https://wa.me/${BROKER_INFO.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+    window.open(`https://wa.me/${currentBroker.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
     setSubmitted(true);
   };
 
@@ -62,8 +66,8 @@ export const ContactSection: React.FC = () => {
                     <Phone className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs text-slate-400">Telefone / WhatsApp</p>
-                      <a href={`tel:${BROKER_INFO.whatsappNumber}`} className="font-semibold text-white hover:text-teal-300 transition-colors">
-                        {BROKER_INFO.phoneFormatted}
+                      <a href={`tel:${currentBroker.whatsappNumber}`} className="font-semibold text-white hover:text-teal-300 transition-colors">
+                        {currentBroker.phoneFormatted}
                       </a>
                     </div>
                   </div>
@@ -72,8 +76,8 @@ export const ContactSection: React.FC = () => {
                     <Mail className="w-5 h-5 text-teal-400 shrink-0 mt-0.5" />
                     <div>
                       <p className="text-xs text-slate-400">E-mail Direto</p>
-                      <a href={`mailto:${BROKER_INFO.email}`} className="font-semibold text-white hover:text-teal-300 transition-colors">
-                        {BROKER_INFO.email}
+                      <a href={`mailto:${currentBroker.email}`} className="font-semibold text-white hover:text-teal-300 transition-colors">
+                        {currentBroker.email}
                       </a>
                     </div>
                   </div>
@@ -207,12 +211,16 @@ export const ContactSection: React.FC = () => {
                         onChange={(e) => setNeighborhood(e.target.value)}
                         className="w-full text-sm px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
                       >
-                        <option value="Ponta Verde">Ponta Verde</option>
-                        <option value="Jatiúca">Jatiúca</option>
-                        <option value="Pajuçara">Pajuçara</option>
-                        <option value="Guaxuma">Guaxuma / Litoral Norte</option>
-                        <option value="Farol">Farol</option>
-                        <option value="Ainda em dúvida">Ainda em dúvida</option>
+                        <option value="Ainda em dúvida / Qualquer bairro">Ainda em dúvida / Qualquer bairro de Maceió</option>
+                        {MACEIO_BAIRROS_BY_REGION.map((group) => (
+                          <optgroup key={group.region} label={group.region}>
+                            {group.bairros.map((b) => (
+                              <option key={b} value={b}>
+                                {b}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
                       </select>
                     </div>
                   </div>

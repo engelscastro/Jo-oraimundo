@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Calculator, DollarSign, Percent, Calendar, ShieldCheck, MessageCircle, HelpCircle } from 'lucide-react';
 import { BROKER_INFO } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 interface FinancingSimulatorProps {
   initialPrice?: number;
 }
 
 export const FinancingSimulator: React.FC<FinancingSimulatorProps> = ({ initialPrice = 850000 }) => {
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
+
   const [propertyPrice, setPropertyPrice] = useState<number>(initialPrice);
   const [downPaymentPercent, setDownPaymentPercent] = useState<number>(20); // 20%
   const [years, setYears] = useState<number>(30); // 30 years (360 months)
@@ -65,7 +69,7 @@ export const FinancingSimulator: React.FC<FinancingSimulatorProps> = ({ initialP
 - Primeira Parcela Estimada: ${formatBRL(firstInstallment)}
 Gostaria da sua ajuda para aprovar meu crédito bancário com as melhores taxas do mercado.`;
 
-    window.open(`https://wa.me/${BROKER_INFO.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+    window.open(`https://wa.me/${currentBroker.whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (

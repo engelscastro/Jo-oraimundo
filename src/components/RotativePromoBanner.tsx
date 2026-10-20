@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Sparkles, ArrowRight, MessageCircle } from 'lucide-react';
 import { MID_BANNER_PROMOS, BROKER_INFO } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 interface RotativePromoBannerProps {
   onTriggerAction: (action: string) => void;
 }
 
 export const RotativePromoBanner: React.FC<RotativePromoBannerProps> = ({ onTriggerAction }) => {
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
+
   const [currentIdx, setCurrentIdx] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const items = MID_BANNER_PROMOS;
@@ -26,7 +30,7 @@ export const RotativePromoBanner: React.FC<RotativePromoBannerProps> = ({ onTrig
       const msg = encodeURIComponent(
         'Olá João Raimundo! Vi a consultoria para investidores no banner do site e gostaria de um estudo de rentabilidade em Maceió.'
       );
-      window.open(`https://wa.me/${BROKER_INFO.whatsappNumber}?text=${msg}`, '_blank');
+      window.open(`https://wa.me/${currentBroker.whatsappNumber}?text=${msg}`, '_blank');
     } else {
       onTriggerAction(promo.action);
     }

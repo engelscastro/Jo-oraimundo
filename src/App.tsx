@@ -47,6 +47,15 @@ function LandingPageContent() {
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
   const [simulatorInitialPrice, setSimulatorInitialPrice] = useState<number>(850000);
 
+  // Available bairros derived from current properties catalog
+  const availableBairros = useMemo(() => {
+    const set = new Set<string>();
+    properties.forEach((p) => {
+      if (p.bairro) set.add(p.bairro);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }, [properties]);
+
   // Compute filtered properties from dynamic state
   const filteredProperties = useMemo(() => {
     return properties.filter((p) => {
@@ -164,48 +173,68 @@ function LandingPageContent() {
             </p>
           </div>
 
-          {/* Category Tabs (Segmented controls with active states) */}
-          <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 rounded-xl overflow-x-auto scrollbar-none self-start md:self-auto">
-            <button
-              onClick={() => setActiveCategoryTab('todos')}
-              className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                activeCategoryTab === 'todos'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Todos os Imóveis
-            </button>
-            <button
-              onClick={() => setActiveCategoryTab('lancamentos')}
-              className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                activeCategoryTab === 'lancamentos'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Lançamentos na Planta
-            </button>
-            <button
-              onClick={() => setActiveCategoryTab('frente_mar')}
-              className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                activeCategoryTab === 'frente_mar'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Frente Mar
-            </button>
-            <button
-              onClick={() => setActiveCategoryTab('prontos')}
-              className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
-                activeCategoryTab === 'prontos'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Prontos para Morar
-            </button>
+          {/* Category Tabs & Bairro Filter */}
+          <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-200/80 rounded-xl overflow-x-auto scrollbar-none">
+              <button
+                onClick={() => setActiveCategoryTab('todos')}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                  activeCategoryTab === 'todos'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Todos os Imóveis
+              </button>
+              <button
+                onClick={() => setActiveCategoryTab('lancamentos')}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                  activeCategoryTab === 'lancamentos'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Lançamentos na Planta
+              </button>
+              <button
+                onClick={() => setActiveCategoryTab('frente_mar')}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                  activeCategoryTab === 'frente_mar'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Frente Mar
+              </button>
+              <button
+                onClick={() => setActiveCategoryTab('prontos')}
+                className={`px-3.5 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                  activeCategoryTab === 'prontos'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Prontos para Morar
+              </button>
+            </div>
+
+            {/* Quick Bairro Filter Dropdown */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 rounded-xl shadow-xs">
+              <MapPin className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+              <select
+                value={filterBairro}
+                onChange={(e) => setFilterBairro(e.target.value)}
+                className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer pr-1"
+                aria-label="Filtrar por bairro"
+              >
+                <option value="Todos">Bairro: Todos</option>
+                {availableBairros.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 

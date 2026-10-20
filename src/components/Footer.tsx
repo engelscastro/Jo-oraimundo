@@ -25,7 +25,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, brokerInfo = BROKER
                   {brokerInfo.name}
                 </h3>
                 <p className="text-xs text-teal-400 font-medium">
-                  CRECI {brokerInfo.creci} · Alagoas
+                  {brokerInfo.creci.startsWith('CRECI') ? brokerInfo.creci : `CRECI ${brokerInfo.creci}`} · Alagoas
                 </p>
               </div>
             </div>
@@ -130,7 +130,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, brokerInfo = BROKER
         {/* Legal Disclaimer & Copyright */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-4">
           <p>
-            © {new Date().getFullYear()} João Raimundo - Consultoria Imobiliária (CRECI 8472-AL). Todos os direitos reservados.
+            © {new Date().getFullYear()} João Raimundo - Consultoria Imobiliária ({brokerInfo.creci.startsWith('CRECI') ? brokerInfo.creci : `CRECI ${brokerInfo.creci}`}). Todos os direitos reservados.
           </p>
           <p>
             As imagens, perspectivas e plantas são meramente ilustrativas e sujeitas a alteração conforme memorial descritivo dos empreendimentos.

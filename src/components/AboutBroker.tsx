@@ -50,7 +50,7 @@ export const AboutBroker: React.FC<AboutBrokerProps> = ({ brokerInfo = BROKER_IN
                 <div className="relative z-20 space-y-2">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-teal-500/30 text-teal-300 text-xs font-semibold backdrop-blur-md border border-teal-400/20">
                     <Award className="w-3.5 h-3.5" />
-                    <span>CRECI {brokerInfo.creci}</span>
+                    <span>{brokerInfo.creci.startsWith('CRECI') ? brokerInfo.creci : `CRECI ${brokerInfo.creci}`}</span>
                   </div>
 
                   <h3 className="text-2xl font-black text-white">

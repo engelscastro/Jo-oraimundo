@@ -67,7 +67,32 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [brokerInfo, setBrokerInfo] = useState<BrokerInfoType>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.BROKER);
-      return saved ? JSON.parse(saved) : INITIAL_BROKER;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Automatically migrate if saved state contains old mock creci or mock phone
+        if (
+          parsed.creci === '8472-AL' ||
+          parsed.creci === '8472' ||
+          parsed.phoneFormatted === '(82) 99988-7766' ||
+          parsed.whatsappNumber === '5582999887766'
+        ) {
+          const updated = {
+            ...parsed,
+            creci: INITIAL_BROKER.creci,
+            phone: INITIAL_BROKER.phone,
+            phoneFormatted: INITIAL_BROKER.phoneFormatted,
+            whatsappNumber: INITIAL_BROKER.whatsappNumber
+          };
+          try {
+            localStorage.setItem(STORAGE_KEYS.BROKER, JSON.stringify(updated));
+          } catch {
+            // ignore
+          }
+          return updated;
+        }
+        return parsed;
+      }
+      return INITIAL_BROKER;
     } catch {
       return INITIAL_BROKER;
     }

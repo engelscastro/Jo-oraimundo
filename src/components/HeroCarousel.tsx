@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Search, MapPin, Bed, DollarSign, Building, Sparkles, ArrowRight, MessageCircle } from 'lucide-react';
-import { BANNER_SLIDES, BannerSlide } from '../data/properties';
+import { BANNER_SLIDES, BannerSlide, MACEIO_BAIRROS_BY_REGION } from '../data/properties';
 
 interface HeroCarouselProps {
   banners?: BannerSlide[];
@@ -244,12 +244,16 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
                 onChange={(e) => setSelectedBairro(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
               >
-                <option value="Todos">Todos os Bairros</option>
-                <option value="Ponta Verde">Ponta Verde (Orla Nobre)</option>
-                <option value="Jatiúca">Jatiúca (Polo Gastronômico)</option>
-                <option value="Pajuçara">Pajuçara (Piscinas Naturais)</option>
-                <option value="Guaxuma">Guaxuma (Litoral Norte Pé na Areia)</option>
-                <option value="Farol">Farol (Alto Padrão Tradicional)</option>
+                <option value="Todos">Todos os Bairros de Maceió</option>
+                {MACEIO_BAIRROS_BY_REGION.map((group) => (
+                  <optgroup key={group.region} label={`📍 ${group.region}`}>
+                    {group.bairros.map((b) => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
             </div>
 

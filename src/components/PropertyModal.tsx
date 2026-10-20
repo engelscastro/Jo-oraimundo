@@ -17,6 +17,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { Property, BROKER_INFO } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 interface PropertyModalProps {
   property: Property | null;
@@ -29,6 +30,9 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
   onClose,
   onOpenSimulator 
 }) => {
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
+
   if (!property) return null;
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
@@ -71,7 +75,7 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
       `Olá João Raimundo! Meu nome é ${leadName} (${leadPhone}). Tenho interesse no imóvel ${property.title} (${property.code}) em ${property.bairro}. ${leadDate ? `Gostaria de agendar visita para ${leadDate}.` : 'Gostaria de receber a tabela de preços e disponibilidade.'}`
     );
 
-    window.open(`https://wa.me/${BROKER_INFO.whatsappNumber}?text=${message}`, '_blank');
+    window.open(`https://wa.me/${currentBroker.whatsappNumber}?text=${message}`, '_blank');
     setSubmitted(true);
   };
 
@@ -354,8 +358,10 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
                     JR
                   </div>
                   <div className="text-xs">
-                    <p className="font-bold text-slate-900">{BROKER_INFO.name}</p>
-                    <p className="text-slate-500">CRECI {BROKER_INFO.creci} · Especialista Maceió</p>
+                    <p className="font-bold text-slate-900">{currentBroker.name}</p>
+                    <p className="text-slate-500">
+                      {currentBroker.creci.startsWith('CRECI') ? currentBroker.creci : `CRECI ${currentBroker.creci}`} · Especialista Maceió
+                    </p>
                   </div>
                 </div>
 

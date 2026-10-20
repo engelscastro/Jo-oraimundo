@@ -5,12 +5,140 @@ export interface PropertyImage {
   category: 'exterior' | 'interior' | 'lazer' | 'planta' | 'vista';
 }
 
+export const MACEIO_BAIRROS = [
+  "Antares",
+  "Barro Duro",
+  "Bebedouro",
+  "Benedito Bentes",
+  "Bom Parto",
+  "Canaã",
+  "Centro",
+  "Chã da Jaqueira",
+  "Chã de Bebedouro",
+  "Cidade Universitária",
+  "Clima Bom",
+  "Cruz das Almas",
+  "Farol",
+  "Feitosa",
+  "Fernão Velho",
+  "Garça Torta",
+  "Gruta de Lourdes",
+  "Guaxuma",
+  "Ipioca",
+  "Jacarecica",
+  "Jacintinho",
+  "Jaraguá",
+  "Jardim Petrópolis",
+  "Jatiúca",
+  "Levada",
+  "Mangabeiras",
+  "Mutange",
+  "Ouro Preto",
+  "Pajuçara",
+  "Pescaria",
+  "Petrópolis",
+  "Pinheiro",
+  "Pitanguinha",
+  "Poço",
+  "Ponta da Terra",
+  "Ponta Grossa",
+  "Ponta Verde",
+  "Pontal da Barra",
+  "Prado",
+  "Riacho Doce",
+  "Rio Novo",
+  "Santa Amélia",
+  "Santa Lúcia",
+  "Santo Amaro",
+  "Santos Dumont",
+  "São Jorge",
+  "Serraria",
+  "Tabuleiro do Martins",
+  "Trapiche da Barra",
+  "Vergel do Lago"
+] as const;
+
+export type MaceioBairro = (typeof MACEIO_BAIRROS)[number] | string;
+
+export const MACEIO_BAIRROS_BY_REGION = [
+  {
+    region: "Orla Marítima e Praias (Litoral Sul e Norte)",
+    bairros: [
+      "Ponta Verde",
+      "Jatiúca",
+      "Pajuçara",
+      "Cruz das Almas",
+      "Mangabeiras",
+      "Jacarecica",
+      "Guaxuma",
+      "Garça Torta",
+      "Riacho Doce",
+      "Pescaria",
+      "Ipioca",
+      "Pontal da Barra"
+    ]
+  },
+  {
+    region: "Zona Central, Histórica e Tradicional",
+    bairros: [
+      "Centro",
+      "Farol",
+      "Jaraguá",
+      "Poço",
+      "Ponta da Terra",
+      "Ponta Grossa",
+      "Prado",
+      "Trapiche da Barra",
+      "Levada",
+      "Vergel do Lago",
+      "Bom Parto",
+      "Bebedouro",
+      "Mutange",
+      "Pinheiro",
+      "Pitanguinha"
+    ]
+  },
+  {
+    region: "Zona Alta, Serraria e Gruta",
+    bairros: [
+      "Gruta de Lourdes",
+      "Serraria",
+      "Antares",
+      "Barro Duro",
+      "Feitosa",
+      "São Jorge",
+      "Jardim Petrópolis",
+      "Santo Amaro",
+      "Ouro Preto",
+      "Canaã"
+    ]
+  },
+  {
+    region: "Tabuleiro e Zona Universitária / Norte-Oeste",
+    bairros: [
+      "Tabuleiro do Martins",
+      "Cidade Universitária",
+      "Santa Lúcia",
+      "Santa Amélia",
+      "Santos Dumont",
+      "Clima Bom",
+      "Benedito Bentes",
+      "Jacintinho",
+      "Chã da Jaqueira",
+      "Chã de Bebedouro",
+      "Petrópolis",
+      "Fernão Velho",
+      "Rio Novo"
+    ]
+  }
+];
+
 export interface Property {
   id: string;
   code: string;
   title: string;
   tagline: string;
-  bairro: 'Ponta Verde' | 'Jatiúca' | 'Pajuçara' | 'Guaxuma' | 'Cruz das Almas' | 'Farol';
+  bairro: MaceioBairro;
   address: string;
   status: 'Lançamento' | 'Em Construção' | 'Pronto para Morar' | 'Últimas Unidades';
   statusProgress?: number; // e.g. 68% for em construção
@@ -65,14 +193,14 @@ export interface NeighborhoodInfo {
 
 export const BROKER_INFO = {
   name: "João Raimundo",
-  creci: "8472-AL",
+  creci: "CRECI-AL 7438",
   role: "Consultor Imobiliário de Alto Padrão",
   region: "Maceió - Alagoas (Orla e Litoral)",
-  phone: "+55 82 99988-7766",
-  phoneFormatted: "(82) 99988-7766",
+  phone: "+55 82 9315-4400",
+  phoneFormatted: "(82) 9315-4400",
   email: "contato@joaoraimundocorretor.com.br",
   address: "Av. Silvio Carlos Viana, 2100 - Ponta Verde, Maceió - AL, 57035-160",
-  whatsappNumber: "5582999887766",
+  whatsappNumber: "558293154400",
   experienceYears: 12,
   propertiesSold: 460,
   volumeNegotiated: "R$ 190 Milhões",
@@ -371,7 +499,7 @@ export const BANNER_SLIDES: BannerSlide[] = [
     ctaText: "Ver Empreendimento",
     ctaTarget: "#imoveis",
     secondaryCtaText: "Falar com João Raimundo",
-    secondaryCtaTarget: "https://wa.me/5582999887766?text=Ola%20Joao%20Raimundo,%20vi%20o%20banner%20do%20Mare%20Nostrum%20na%20Ponta%20Verde%20e%20gostaria%20de%20mais%20detalhes.",
+    secondaryCtaTarget: "https://wa.me/558293154400?text=Ola%20Joao%20Raimundo,%20vi%20o%20banner%20do%20Mare%20Nostrum%20na%20Ponta%20Verde%20e%20gostaria%20de%20mais%20detalhes.",
     priceText: "A partir de R$ 1.890.000",
     imageTheme: "ponta_verde",
     imageUrl: svgBg("ocean", "Orla de Ponta Verde", "Av. Silvio Carlos Viana · Frente Mar", "#0284c7")
@@ -416,7 +544,7 @@ export const BANNER_SLIDES: BannerSlide[] = [
     ctaText: "Explorar o Resort",
     ctaTarget: "#imoveis",
     secondaryCtaText: "Receber Apresentação PDF",
-    secondaryCtaTarget: "https://wa.me/5582999887766?text=Ola%20Joao,%20quero%20receber%20a%20apresentacao%20em%20PDF%20do%20Residencial%20Guaxuma.",
+    secondaryCtaTarget: "https://wa.me/558293154400?text=Ola%20Joao,%20quero%20receber%20a%20apresentacao%20em%20PDF%20do%20Residencial%20Guaxuma.",
     priceText: "A partir de R$ 1.150.000",
     imageTheme: "resort",
     imageUrl: svgBg("sunset", "Guaxuma Beach Resort", "Litoral Norte de Maceió", "#059669")

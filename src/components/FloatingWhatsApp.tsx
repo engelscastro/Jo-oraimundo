@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { MessageCircle, X, ChevronRight } from 'lucide-react';
 import { BROKER_INFO } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 export const FloatingWhatsApp: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
 
   const openWhatsApp = (customMessage: string) => {
-    const url = `https://wa.me/${BROKER_INFO.whatsappNumber}?text=${encodeURIComponent(customMessage)}`;
+    const url = `https://wa.me/${currentBroker.whatsappNumber}?text=${encodeURIComponent(customMessage)}`;
     window.open(url, '_blank');
     setIsOpen(false);
   };
@@ -25,7 +28,7 @@ export const FloatingWhatsApp: React.FC = () => {
                 JR
               </div>
               <div>
-                <h4 className="text-sm font-bold leading-tight">{BROKER_INFO.name}</h4>
+                <h4 className="text-sm font-bold leading-tight">{currentBroker.name}</h4>
                 <p className="text-[11px] text-emerald-100">Corretor Online · Resposta Rápida</p>
               </div>
             </div>

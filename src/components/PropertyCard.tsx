@@ -14,6 +14,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { Property, BROKER_INFO } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 interface PropertyCardProps {
   property: Property;
@@ -26,6 +27,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
   onOpenDetails,
   onOpenSimulatorForProperty 
 }) => {
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const images = property.images;
@@ -51,7 +55,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
     `Olá João Raimundo! Vi no seu site o imóvel ${property.title} (${property.code}) no bairro ${property.bairro} por ${formattedPrice}. Gostaria de mais informações e disponibilidade.`
   );
 
-  const whatsappLink = `https://wa.me/${BROKER_INFO.whatsappNumber}?text=${whatsappMessage}`;
+  const whatsappLink = `https://wa.me/${currentBroker.whatsappNumber}?text=${whatsappMessage}`;
 
   return (
     <article className="group bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col">

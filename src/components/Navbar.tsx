@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Phone, MessageCircle, Menu, X, Building2, MapPin } from 'lucide-react';
 import { BROKER_INFO } from '../data/properties';
+import { useRealEstate } from '../context/RealEstateContext';
 
 interface NavbarProps {
   onSelectNeighborhood?: (neighborhood: string) => void;
@@ -10,8 +11,14 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenAdmin }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { brokerInfo } = useRealEstate();
+  const currentBroker = brokerInfo || BROKER_INFO;
 
-  const whatsappUrl = `https://wa.me/${BROKER_INFO.whatsappNumber}?text=${encodeURIComponent(
+  const creciDisplay = currentBroker.creci.startsWith('CRECI') 
+    ? currentBroker.creci 
+    : `CRECI ${currentBroker.creci}`;
+
+  const whatsappUrl = `https://wa.me/${currentBroker.whatsappNumber}?text=${encodeURIComponent(
     'Olá João Raimundo! Acessei seu site e gostaria de consultoria sobre imóveis em Maceió.'
   )}`;
 
@@ -30,7 +37,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAdmin }) => {
                 João Raimundo
               </span>
               <span className="text-xs text-slate-500 font-medium tracking-wide">
-                CRECI 8472-AL · Maceió
+                {creciDisplay} · Maceió
               </span>
             </div>
           </a>
@@ -176,11 +183,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenAdmin }) => {
               <span>Conversar via WhatsApp</span>
             </a>
             <a
-              href={`tel:${BROKER_INFO.whatsappNumber}`}
+              href={`tel:${currentBroker.whatsappNumber}`}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
             >
               <Phone className="w-4 h-4" />
-              <span>Ligar: {BROKER_INFO.phoneFormatted}</span>
+              <span>Ligar: {currentBroker.phoneFormatted}</span>
             </a>
           </div>
         </div>
