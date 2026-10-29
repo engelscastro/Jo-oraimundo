@@ -359,7 +359,7 @@ export async function commitPropertiesTsToGitHub(
   const base64 = btoa(binary);
 
   const pathInRepo = 'src/data/properties.ts';
-  const commitMsg = 'Atualização do catálogo de imóveis via Painel Admin [skip ci]';
+  const commitMsg = 'Atualização do catálogo de imóveis via Painel Admin';
 
   const res = await uploadFileToGitHub(pathInRepo, base64, commitMsg);
   return {

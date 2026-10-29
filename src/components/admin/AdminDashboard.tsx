@@ -534,6 +534,19 @@ export const TESTIMONIALS: Testimonial[] = [
   const handleSaveCodeToDisk = async () => {
     setIsSavingCode(true);
     try {
+      const gh = getGitHubConfig();
+      if (gh.repo && gh.token) {
+        showNotification('Publicando catálogo atualizado no GitHub...');
+        const tsCode = generateTSCode();
+        const res = await commitPropertiesTsToGitHub(tsCode);
+        if (res.success) {
+          showNotification('✓ Sucesso! Catálogo publicado no GitHub. A Vercel está atualizando o site (~45s para o celular e todos os visitantes).');
+          return;
+        } else {
+          showNotification(`Aviso GitHub: ${res.error}`);
+        }
+      }
+
       const res = await fetch('/api/save-to-properties-ts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -868,17 +881,17 @@ export const TESTIMONIALS: Testimonial[] = [
               onClick={handleSaveCodeToDisk}
               disabled={isSavingCode}
               className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
-              title="Grava todos os imóveis e fotos diretamente no código do site (src/data/properties.ts) sem banco de dados"
+              title={githubConfig.repo && githubConfig.token ? "Comunica as alterações diretamente para o GitHub para a Vercel atualizar o site em todos os celulares" : "Grava todos os imóveis e fotos diretamente no código do site (src/data/properties.ts)"}
             >
               {isSavingCode ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Gravando...</span>
+                  <span>Publicando...</span>
                 </>
               ) : (
                 <>
-                  <Save className="w-3.5 h-3.5 text-emerald-200" />
-                  <span>Gravar no Código (properties.ts)</span>
+                  <GitCommit className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>{githubConfig.repo && githubConfig.token ? 'Publicar no Site (GitHub / Vercel)' : 'Gravar no Código (properties.ts)'}</span>
                 </>
               )}
             </button>
