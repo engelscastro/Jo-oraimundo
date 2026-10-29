@@ -247,14 +247,44 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     }
   };
 
-  // Migrate existing dataUrl to Vercel Blob
+  // Migrate existing dataUrl to GitHub (public/fotos/) or Vercel Blob
   const handleMigrateImageToVercel = async (
     dataUrl: string,
     filename: string,
     onSuccess: (newUrl: string) => void
   ) => {
     setUploadingTargetId(`migrate-${filename}`);
-    setUploadingMessage('Enviando para o Vercel Blob...');
+
+    const gh = getGitHubConfig();
+
+    // 1. Se GitHub estiver configurado, envia DIRETO para public/fotos/ no GitHub!
+    if (gh.repo && gh.token) {
+      setUploadingMessage('Commitando foto em public/fotos/ no GitHub...');
+      try {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
+        const ghRes = await uploadPhotoToGitHub(file, filename);
+
+        if (ghRes.success) {
+          onSuccess(ghRes.url);
+          showNotification(`✓ Foto salva em public/fotos/ no GitHub! A Vercel atualizará o site.`);
+          return;
+        } else {
+          showNotification(`Aviso GitHub: ${ghRes.error}`);
+          return;
+        }
+      } catch (err: any) {
+        showNotification('Erro ao enviar para o GitHub: ' + err.message);
+        return;
+      } finally {
+        setUploadingTargetId(null);
+        setUploadingMessage('');
+      }
+    }
+
+    // 2. Se GitHub não estiver configurado, avisa amigavelmente
+    setUploadingMessage('Enviando para a Nuvem...');
     try {
       const res = await fetch(dataUrl);
       const blob = await res.blob();
@@ -262,13 +292,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       const uploadRes = await uploadImageToVercel(file, setUploadingMessage);
       if (uploadRes.isVercel) {
         onSuccess(uploadRes.url);
-        showNotification('Imagem migrada para a Vercel com sucesso!');
+        showNotification('Imagem hospedada na Vercel com sucesso!');
         checkVercelBlobStatus().then(setVercelStatus);
       } else {
-        showNotification(uploadRes.error || 'Não foi possível migrar. Verifique o token da Vercel.');
+        showNotification('Para salvar em public/fotos/, configure a aba "GitHub" com seu repositório e token ghp_!');
       }
     } catch (err: any) {
-      showNotification('Erro na migração: ' + err.message);
+      showNotification('Erro: ' + err.message);
     } finally {
       setUploadingTargetId(null);
       setUploadingMessage('');
@@ -531,9 +561,85 @@ export const MID_BANNER_PROMOS = [
 
   const handleBatchMigrateAll = async () => {
     if (pendingLocalImagesCount === 0) {
-      showNotification('Todas as fotos já estão hospedadas na CDN da Vercel!');
+      showNotification('Todas as fotos já estão salvas permanentemente!');
       return;
     }
+
+    const gh = getGitHubConfig();
+    if (gh.repo && gh.token) {
+      setIsBatchMigrating(true);
+      setBatchProgress({ current: 0, total: pendingLocalImagesCount, message: 'Iniciando upload de fotos para o GitHub...' });
+
+      try {
+        let count = 0;
+        // Banners
+        for (const b of banners) {
+          if (b.imageUrl && b.imageUrl.startsWith('data:')) {
+            setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Enviando banner ${b.title || b.id} para o GitHub...` });
+            const res = await fetch(b.imageUrl);
+            const blob = await res.blob();
+            const file = new File([blob], `banner-${b.id}.jpg`, { type: 'image/jpeg' });
+            const ghRes = await uploadPhotoToGitHub(file, `banner-${b.id}.jpg`);
+            if (ghRes.success) {
+              updateBanner({ ...b, imageUrl: ghRes.url });
+              count++;
+            }
+          }
+        }
+
+        // Properties
+        for (const p of properties) {
+          let propUpdated = false;
+          const newImages = [...p.images];
+          for (let i = 0; i < newImages.length; i++) {
+            const img = newImages[i];
+            if (img.url && img.url.startsWith('data:')) {
+              setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Enviando foto de ${p.title} para o GitHub...` });
+              const res = await fetch(img.url);
+              const blob = await res.blob();
+              const file = new File([blob], `prop-${p.code}-${i}.jpg`, { type: 'image/jpeg' });
+              const ghRes = await uploadPhotoToGitHub(file, `prop-${p.code}-${i}.jpg`);
+              if (ghRes.success) {
+                newImages[i] = { ...img, url: ghRes.url };
+                propUpdated = true;
+                count++;
+              }
+            }
+          }
+          if (propUpdated) {
+            updateProperty({ ...p, images: newImages });
+          }
+        }
+
+        // Broker
+        if (brokerInfo.avatarUrl && brokerInfo.avatarUrl.startsWith('data:')) {
+          setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: 'Enviando foto do corretor para o GitHub...' });
+          const res = await fetch(brokerInfo.avatarUrl);
+          const blob = await res.blob();
+          const file = new File([blob], 'joao-raimundo-corretor.jpg', { type: 'image/jpeg' });
+          const ghRes = await uploadPhotoToGitHub(file, 'joao-raimundo-corretor.jpg');
+          if (ghRes.success) {
+            updateBroker({ avatarUrl: ghRes.url });
+            count++;
+          }
+        }
+
+        // Commita properties.ts atualizado
+        setBatchProgress({ current: count, total: pendingLocalImagesCount, message: 'Atualizando catálogo no GitHub...' });
+        const tsCode = generateTSCode();
+        await commitPropertiesTsToGitHub(tsCode);
+
+        showNotification(`✓ ${count} foto(s) enviadas com sucesso para public/fotos/ no GitHub! A Vercel atualizará o site.`);
+      } catch (err: any) {
+        showNotification('Erro ao enviar fotos para o GitHub: ' + err.message);
+      } finally {
+        setIsBatchMigrating(false);
+        setBatchProgress(null);
+      }
+      return;
+    }
+
+    // Se GitHub não configurado, tenta Vercel Blob
     setIsBatchMigrating(true);
     setBatchProgress({ current: 0, total: pendingLocalImagesCount, message: 'Iniciando upload de fotos...' });
     try {
@@ -541,12 +647,12 @@ export const MID_BANNER_PROMOS = [
         setBatchProgress({ current: curr, total: tot, message: msg });
       });
       if (res.migratedCount > 0) {
-        showNotification(`Sucesso! ${res.migratedCount} foto(s) migradas para a Nuvem da Vercel.`);
+        showNotification(`Sucesso! ${res.migratedCount} foto(s) migradas.`);
       } else {
-        showNotification('Nenhuma foto precisou ser migrada ou verifique o token da Vercel.');
+        showNotification('Configure o repositório e o token na aba "GitHub" para enviar para public/fotos/.');
       }
     } catch (err: any) {
-      showNotification('Erro na migração: ' + err.message);
+      showNotification('Erro: ' + err.message);
     } finally {
       setIsBatchMigrating(false);
       setBatchProgress(null);
@@ -919,20 +1025,20 @@ export const MID_BANNER_PROMOS = [
                       <div className="md:col-span-7 space-y-3">
                         <div className="space-y-1">
                           <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-                            <Cloud className="w-3.5 h-3.5 text-teal-600" />
-                            <span>Upload da Foto no Vercel Blob (PNG/JPG)</span>
+                            <ImageIcon className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Upload da Foto (PNG/JPG)</span>
                           </label>
                           <div className="flex flex-wrap items-center gap-2">
                             <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-sm transition-colors">
                               {uploadingTargetId === slide.id ? (
                                 <>
                                   <Loader2 className="w-4 h-4 text-teal-400 animate-spin" />
-                                  <span>{uploadingMessage || 'Enviando para Vercel...'}</span>
+                                  <span>{uploadingMessage || 'Enviando...'}</span>
                                 </>
                               ) : (
                                 <>
-                                  <CloudUpload className="w-4 h-4 text-teal-400" />
-                                  <span>Upload para Vercel (PC)</span>
+                                  <Upload className="w-4 h-4 text-teal-400" />
+                                  <span>{githubConfig.repo && githubConfig.token ? 'Upload p/ GitHub (public/fotos)' : 'Upload de Foto (PC)'}</span>
                                 </>
                               )}
                               <input
@@ -962,12 +1068,12 @@ export const MID_BANNER_PROMOS = [
                                 {uploadingTargetId === `migrate-${slide.id}` ? (
                                   <>
                                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                    <span>Migrando...</span>
+                                    <span>Salvando...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <Cloud className="w-3.5 h-3.5 text-teal-600" />
-                                    <span>Migrar para Vercel</span>
+                                    <GitCommit className="w-3.5 h-3.5 text-teal-600" />
+                                    <span>{githubConfig.repo && githubConfig.token ? 'Salvar no GitHub (public/fotos)' : 'Salvar no GitHub'}</span>
                                   </>
                                 )}
                               </button>
@@ -1675,14 +1781,14 @@ export const MID_BANNER_PROMOS = [
                                         })
                                       }
                                       className="p-1 rounded bg-teal-600 hover:bg-teal-700 text-white text-[9px] font-bold flex items-center gap-0.5"
-                                      title="Migrar para Vercel Blob"
+                                      title={githubConfig.repo && githubConfig.token ? "Salvar no GitHub (public/fotos/)" : "Salvar no GitHub"}
                                     >
                                       {uploadingTargetId === `migrate-${img.id}` ? (
                                         <Loader2 className="w-3 h-3 animate-spin" />
                                       ) : (
                                         <>
-                                          <Cloud className="w-2.5 h-2.5" />
-                                          <span>Vercel</span>
+                                          <GitCommit className="w-2.5 h-2.5" />
+                                          <span>GitHub</span>
                                         </>
                                       )}
                                     </button>
@@ -1992,12 +2098,12 @@ export const MID_BANNER_PROMOS = [
                       {uploadingTargetId === 'broker-avatar' ? (
                         <>
                           <Loader2 className="w-3.5 h-3.5 text-teal-400 animate-spin" />
-                          <span>{uploadingMessage || 'Enviando para Vercel...'}</span>
+                          <span>{uploadingMessage || 'Enviando...'}</span>
                         </>
                       ) : (
                         <>
-                          <CloudUpload className="w-3.5 h-3.5 text-teal-400" />
-                          <span>Upload Foto no Vercel</span>
+                          <Upload className="w-3.5 h-3.5 text-teal-400" />
+                          <span>{githubConfig.repo && githubConfig.token ? 'Upload Foto p/ GitHub' : 'Upload Foto de Perfil'}</span>
                         </>
                       )}
                       <input
@@ -2027,12 +2133,12 @@ export const MID_BANNER_PROMOS = [
                         {uploadingTargetId === 'migrate-broker' ? (
                           <>
                             <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Migrando...</span>
+                            <span>Salvando...</span>
                           </>
                         ) : (
                           <>
-                            <Cloud className="w-3.5 h-3.5 text-teal-600" />
-                            <span>Migrar para Vercel</span>
+                            <GitCommit className="w-3.5 h-3.5 text-teal-600" />
+                            <span>{githubConfig.repo && githubConfig.token ? 'Salvar no GitHub (public/fotos)' : 'Salvar no GitHub'}</span>
                           </>
                         )}
                       </button>
@@ -2570,6 +2676,30 @@ export const MID_BANNER_PROMOS = [
                         placeholder="Ex: vercel_blob_rw_xxxxxxxxxxxxxxxxxxxxxxxx"
                         className="flex-1 text-xs font-mono px-3.5 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-teal-500 focus:outline-none bg-slate-50"
                       />
+
+                      {(blobTokenInput.startsWith('ghp_') || blobTokenInput.startsWith('github_pat_')) && (
+                        <div className="w-full p-3 bg-amber-50 rounded-lg border border-amber-300 text-xs text-amber-900 space-y-2">
+                          <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Este é um Token do GitHub (começa com ghp_), não da Vercel!</span>
+                          </div>
+                          <p className="text-[11px] text-amber-800">
+                            Você gerou um token para o <strong>GitHub</strong> para salvar fotos na pasta <code>public/fotos/</code>. Para usá-lo:
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setGithubTokenInput(blobTokenInput);
+                              setActiveTab('github');
+                              showNotification('Token transferido para a aba GitHub!');
+                            }}
+                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded font-bold text-[11px] flex items-center gap-1.5"
+                          >
+                            <GitCommit className="w-3.5 h-3.5 text-teal-400" />
+                            <span>Ir para a aba GitHub e usar este token</span>
+                          </button>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-2">
                         <button
