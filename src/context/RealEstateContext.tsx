@@ -14,6 +14,7 @@ import {
   SharedCatalogData 
 } from '../services/siteDataService';
 import { checkVercelBlobStatus, getVercelBlobToken } from '../services/vercelBlobService';
+import { fetchPublishedCatalog } from '../services/githubService';
 
 export type BrokerInfoType = typeof INITIAL_BROKER;
 export type PromoBannerType = typeof INITIAL_PROMOS[0];
@@ -150,10 +151,46 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const hasLoadedFromCloudRef = useRef(false);
   const autoSyncTimeoutRef = useRef<any>(null);
 
-  // Function to load shared catalog from Vercel Cloud
+  // Function to load shared catalog from GitHub / Vercel Cloud
   const loadFromCloud = useCallback(async (): Promise<boolean> => {
     try {
       setCloudSync(prev => ({ ...prev, isSyncing: true, error: null }));
+
+      // 1. Tenta buscar o catálogo publicado no GitHub / Vercel public/catalog.json
+      const published = await fetchPublishedCatalog();
+      if (published) {
+        if (Array.isArray(published.properties) && published.properties.length > 0) {
+          setProperties(published.properties);
+        }
+        if (Array.isArray(published.banners) && published.banners.length > 0) {
+          setBanners(published.banners);
+        }
+        if (published.brokerInfo) {
+          setBrokerInfo(published.brokerInfo);
+        }
+        if (Array.isArray(published.promos) && published.promos.length > 0) {
+          setPromos(published.promos);
+        }
+
+        const syncTime = published.updatedAt || new Date().toISOString();
+        try {
+          localStorage.setItem(STORAGE_KEYS.LAST_CLOUD_SYNC, syncTime);
+        } catch {
+          // ignore
+        }
+
+        setCloudSync(prev => ({
+          ...prev,
+          isSyncing: false,
+          isCloudLoaded: true,
+          isConfigured: true,
+          lastSyncedAt: syncTime,
+          error: null
+        }));
+        return true;
+      }
+
+      // 2. Fallback para Vercel Blob se configurado
       const status = await checkVercelBlobStatus();
       setCloudSync(prev => ({ ...prev, isConfigured: status.configured }));
 

@@ -368,3 +368,89 @@ export async function commitPropertiesTsToGitHub(
     error: res.error,
   };
 }
+
+/**
+ * Commit do arquivo public/catalog.json diretamente no GitHub para sincronização instantânea
+ */
+export async function commitCatalogJsonToGitHub(
+  catalogPayload: any
+): Promise<{ success: boolean; commitSha?: string; error?: string }> {
+  const jsonStr = JSON.stringify(catalogPayload, null, 2);
+  const bytes = new TextEncoder().encode(jsonStr);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const base64 = btoa(binary);
+
+  const pathInRepo = 'public/catalog.json';
+  const commitMsg = `Sincronização instantânea do catálogo [${new Date().toISOString()}]`;
+
+  const res = await uploadFileToGitHub(pathInRepo, base64, commitMsg);
+  return {
+    success: res.success,
+    commitSha: res.commitSha,
+    error: res.error,
+  };
+}
+
+/**
+ * Publica todo o site no GitHub (atualiza public/catalog.json E src/data/properties.ts)
+ */
+export async function commitFullSiteUpdateToGitHub(
+  catalogPayload: any,
+  tsSourceCode: string
+): Promise<{ success: boolean; error?: string }> {
+  // 1. Salva public/catalog.json para sync instantâneo em celulares
+  const jsonRes = await commitCatalogJsonToGitHub(catalogPayload);
+  if (!jsonRes.success) {
+    return { success: false, error: jsonRes.error };
+  }
+
+  // 2. Salva src/data/properties.ts para atualização permanente do código fonte
+  const tsRes = await commitPropertiesTsToGitHub(tsSourceCode);
+  if (!tsRes.success) {
+    return { success: false, error: tsRes.error };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Busca o catálogo public/catalog.json publicado diretamente no GitHub Raw ou na Vercel
+ */
+export async function fetchPublishedCatalog(): Promise<any | null> {
+  const config = getGitHubConfig();
+
+  // 1. Tenta buscar da CDN crua do GitHub primeiro se o repositório estiver configurado
+  if (config.repo) {
+    const branch = config.branch || 'main';
+    const rawUrl = `https://raw.githubusercontent.com/${config.repo}/${branch}/public/catalog.json?t=${Date.now()}`;
+    try {
+      const res = await fetch(rawUrl);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && (Array.isArray(data.properties) || Array.isArray(data.banners))) {
+          return data;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  // 2. Fallback para /catalog.json do próprio servidor estático da Vercel
+  try {
+    const res = await fetch(`/catalog.json?t=${Date.now()}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && (Array.isArray(data.properties) || Array.isArray(data.banners))) {
+        return data;
+      }
+    }
+  } catch {
+    // Ignore
+  }
+
+  return null;
+}

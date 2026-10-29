@@ -51,6 +51,7 @@ import {
   testGitHubConnection,
   uploadPhotoToGitHub,
   commitPropertiesTsToGitHub,
+  commitFullSiteUpdateToGitHub,
   resolveImageUrl,
   handleImageError,
   GitHubConfig,
@@ -536,11 +537,18 @@ export const TESTIMONIALS: Testimonial[] = [
     try {
       const gh = getGitHubConfig();
       if (gh.repo && gh.token) {
-        showNotification('Publicando catálogo atualizado no GitHub...');
+        showNotification('Sincronizando fotos e catálogo com o GitHub...');
         const tsCode = generateTSCode();
-        const res = await commitPropertiesTsToGitHub(tsCode);
+        const catalogPayload = {
+          updatedAt: new Date().toISOString(),
+          properties,
+          banners,
+          brokerInfo,
+          promos
+        };
+        const res = await commitFullSiteUpdateToGitHub(catalogPayload, tsCode);
         if (res.success) {
-          showNotification('✓ Sucesso! Catálogo publicado no GitHub. A Vercel está atualizando o site (~45s para o celular e todos os visitantes).');
+          showNotification('✓ Publicado com sucesso! Seu celular e todos os visitantes já carregam os imóveis e fotos atualizadas.');
           return;
         } else {
           showNotification(`Aviso GitHub: ${res.error}`);
