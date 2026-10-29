@@ -28,7 +28,9 @@ import {
   Sparkles,
   RefreshCw,
   Key,
-  Globe
+  Globe,
+  GitBranch,
+  GitCommit
 } from 'lucide-react';
 import { useRealEstate } from '../../context/RealEstateContext';
 import { Property, BannerSlide, PropertyImage, MACEIO_BAIRROS, MACEIO_BAIRROS_BY_REGION } from '../../data/properties';
@@ -42,6 +44,16 @@ import {
   checkVercelBlobStatus, 
   VercelBlobStatus 
 } from '../../services/vercelBlobService';
+import {
+  getGitHubConfig,
+  saveGitHubConfig,
+  removeGitHubConfig,
+  testGitHubConnection,
+  uploadPhotoToGitHub,
+  commitPropertiesTsToGitHub,
+  GitHubConfig,
+  GitHubTestResult
+} from '../../services/githubService';
 
 const POPULAR_MACEIO_BAIRROS = [
   "Ponta Verde",
@@ -85,9 +97,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     importJSON
   } = useRealEstate();
 
-  const [activeTab, setActiveTab] = useState<'banners' | 'properties' | 'broker' | 'vercel' | 'backup'>('banners');
+  const [activeTab, setActiveTab] = useState<'banners' | 'properties' | 'broker' | 'github' | 'vercel' | 'backup'>('banners');
   const [selectedPropertyId, setSelectedPropertyId] = useState<string>(properties[0]?.id || '');
   const [saveSuccessNotice, setSaveSuccessNotice] = useState<string | null>(null);
+
+  // GitHub direct repository integration state
+  const [githubConfig, setGithubConfig] = useState<GitHubConfig>(() => getGitHubConfig());
+  const [githubRepoInput, setGithubRepoInput] = useState<string>('');
+  const [githubTokenInput, setGithubTokenInput] = useState<string>('');
+  const [githubBranchInput, setGithubBranchInput] = useState<string>('main');
+  const [isTestingGitHub, setIsTestingGitHub] = useState<boolean>(false);
+  const [githubTestResult, setGithubTestResult] = useState<GitHubTestResult | null>(null);
+  const [isCommittingGitHub, setIsCommittingGitHub] = useState<boolean>(false);
 
   // Vercel Blob & Cross-Device Cloud Sync State
   const [isManualSyncing, setIsManualSyncing] = useState<boolean>(false);
@@ -118,6 +139,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     if (isOpen) {
       checkVercelBlobStatus().then(setVercelStatus);
       setBlobTokenInput(getVercelBlobToken());
+      const gh = getGitHubConfig();
+      setGithubConfig(gh);
+      setGithubRepoInput(gh.repo);
+      setGithubTokenInput(gh.token);
+      setGithubBranchInput(gh.branch || 'main');
     }
   }, [isOpen]);
 
@@ -184,6 +210,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     setUploadingMessage('Preparando imagem...');
 
     try {
+      const gh = getGitHubConfig();
+      if (gh.repo && gh.token) {
+        setUploadingMessage('Commitando foto em public/fotos/ no GitHub...');
+        const ghRes = await uploadPhotoToGitHub(file);
+        if (ghRes.success) {
+          onSuccess(ghRes.url, false);
+          showNotification(`✓ Foto enviada para public/fotos/ no GitHub! A Vercel iniciou a atualização.`);
+          return;
+        } else {
+          console.warn('Falha ao enviar para o GitHub:', ghRes.error);
+          showNotification(`Aviso GitHub: ${ghRes.error}. Salvando localmente.`);
+        }
+      }
+
       const res = await uploadImageToVercel(file, (msg) => {
         setUploadingMessage(msg);
       });
@@ -390,6 +430,72 @@ export const MID_BANNER_PROMOS = [
     }
   };
 
+  // GitHub integration handlers
+  const handleSaveGitHubConfig = () => {
+    if (!githubRepoInput.trim() || !githubTokenInput.trim()) {
+      showNotification('Preencha o repositório (ex: usuario/repo) e o token do GitHub.');
+      return;
+    }
+    saveGitHubConfig(githubRepoInput.trim(), githubTokenInput.trim(), githubBranchInput.trim() || 'main');
+    const updated = getGitHubConfig();
+    setGithubConfig(updated);
+    showNotification('Configurações do GitHub salvas com sucesso!');
+    testGitHubConnection().then(setGithubTestResult);
+  };
+
+  const handleDisconnectGitHub = () => {
+    removeGitHubConfig();
+    setGithubConfig({ repo: '', token: '', branch: 'main' });
+    setGithubRepoInput('');
+    setGithubTokenInput('');
+    setGithubTestResult(null);
+    showNotification('GitHub desconectado.');
+  };
+
+  const handleTestGitHubConnection = async () => {
+    setIsTestingGitHub(true);
+    setGithubTestResult(null);
+    try {
+      saveGitHubConfig(githubRepoInput.trim(), githubTokenInput.trim(), githubBranchInput.trim() || 'main');
+      const res = await testGitHubConnection();
+      setGithubTestResult(res);
+      if (res.success) {
+        setGithubConfig(getGitHubConfig());
+        showNotification('✓ Conexão com GitHub realizada com sucesso!');
+      } else {
+        showNotification(res.message);
+      }
+    } catch (err: any) {
+      setGithubTestResult({ success: false, message: err.message || 'Erro ao conectar com GitHub' });
+    } finally {
+      setIsTestingGitHub(false);
+    }
+  };
+
+  const handleCommitAllToGitHub = async () => {
+    const gh = getGitHubConfig();
+    if (!gh.repo || !gh.token) {
+      setActiveTab('github');
+      showNotification('Configure o Repositório e Token do GitHub primeiro.');
+      return;
+    }
+
+    setIsCommittingGitHub(true);
+    try {
+      const code = generateTSCode();
+      const res = await commitPropertiesTsToGitHub(code);
+      if (res.success) {
+        showNotification('✓ Catálogo commitado no GitHub com sucesso! A Vercel está atualizando o site (~45s).');
+      } else {
+        showNotification(`Erro ao enviar para o GitHub: ${res.error}`);
+      }
+    } catch (err: any) {
+      showNotification(err.message || 'Erro ao commitar no GitHub');
+    } finally {
+      setIsCommittingGitHub(false);
+    }
+  };
+
   // Import JSON file
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -575,6 +681,28 @@ export const MID_BANNER_PROMOS = [
               )}
             </button>
 
+            {githubConfig.repo && githubConfig.token && (
+              <button
+                type="button"
+                onClick={handleCommitAllToGitHub}
+                disabled={isCommittingGitHub}
+                className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 hover:bg-slate-700 text-teal-300 border border-teal-500/40 rounded-lg font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
+                title="Commitar dados e propriedades diretamente no GitHub para atualizar celulares e computadores"
+              >
+                {isCommittingGitHub ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Commitando no GitHub...</span>
+                  </>
+                ) : (
+                  <>
+                    <GitCommit className="w-3.5 h-3.5 text-teal-400" />
+                    <span>Commitar no GitHub</span>
+                  </>
+                )}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleManualSyncToCloud}
@@ -633,6 +761,23 @@ export const MID_BANNER_PROMOS = [
           >
             <User className="w-4 h-4 text-teal-600" />
             <span>Perfil do Corretor</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('github')}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
+              activeTab === 'github'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <GitCommit className="w-4 h-4 text-teal-600" />
+            <span>GitHub (public/fotos)</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                githubConfig.repo && githubConfig.token ? 'bg-emerald-500' : 'bg-slate-300'
+              }`}
+            />
           </button>
 
           <button
@@ -1998,6 +2143,233 @@ export const MID_BANNER_PROMOS = [
             </div>
           )}
 
+          {/* TAB: GITHUB & PUBLIC/FOTOS/ */}
+          {activeTab === 'github' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+              
+              {/* Status Header Card */}
+              <div className="p-6 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-md">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
+                      <GitCommit className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                        <span>Integração Direta com GitHub</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-teal-300 font-mono">
+                          public/fotos/
+                        </span>
+                      </h3>
+                      <p className="text-xs text-slate-400">
+                        Envie fotos diretamente para o repositório no GitHub sem precisar de terminal
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {githubConfig.repo && githubConfig.token ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Conectado: {githubConfig.repo}</span>
+                      </div>
+                    ) : (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold">
+                        <AlertCircle className="w-4 h-4 text-amber-400" />
+                        <span>Não Conectado</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                  <p className="text-slate-300 leading-relaxed max-w-xl">
+                    Com o GitHub configurado, toda foto selecionada no painel é <strong>enviada e commitada automaticamente</strong> na pasta <code className="text-teal-300">public/fotos/</code> do seu repositório. A Vercel detecta o commit e atualiza o site no celular e computadores em ~45s!
+                  </p>
+
+                  {githubConfig.repo && githubConfig.token && (
+                    <button
+                      type="button"
+                      onClick={handleCommitAllToGitHub}
+                      disabled={isCommittingGitHub}
+                      className="px-4 py-2 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-2 shrink-0 transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {isCommittingGitHub ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Publicando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <GitCommit className="w-4 h-4" />
+                          <span>Publicar properties.ts</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* GitHub Configuration Form */}
+              <div className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm space-y-5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <Key className="w-4 h-4 text-teal-600" />
+                    <span>Configuração do Repositório e Token</span>
+                  </h4>
+
+                  {githubConfig.repo && (
+                    <button
+                      type="button"
+                      onClick={handleDisconnectGitHub}
+                      className="text-xs text-red-600 hover:text-red-700 font-semibold"
+                    >
+                      Desconectar
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1 sm:col-span-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Repositório no GitHub (usuario/nome-do-repo)
+                    </label>
+                    <input
+                      type="text"
+                      value={githubRepoInput}
+                      onChange={(e) => setGithubRepoInput(e.target.value)}
+                      placeholder="ex: engelsbarros/jo-oraimundo"
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      O nome exato do seu repositório no GitHub.
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-1">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Branch Principal
+                    </label>
+                    <input
+                      type="text"
+                      value={githubBranchInput}
+                      onChange={(e) => setGithubBranchInput(e.target.value)}
+                      placeholder="main"
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Geralmente <code>main</code> (a branch conectada à Vercel).
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-700">
+                        GitHub Personal Access Token (PAT)
+                      </label>
+                      <a
+                        href="https://github.com/settings/tokens/new?scopes=repo&description=Painel+Admin+Imobiliaria"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-teal-600 hover:text-teal-700 font-semibold flex items-center gap-1"
+                      >
+                        <span>Gerar Token no GitHub (1 clique)</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                    <input
+                      type="password"
+                      value={githubTokenInput}
+                      onChange={(e) => setGithubTokenInput(e.target.value)}
+                      placeholder="ghp_... ou github_pat_..."
+                      className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-mono"
+                    />
+                    <p className="text-[11px] text-slate-500">
+                      Token pessoal com permissão de <strong>repo</strong> (escrita). Salvo apenas no seu navegador.
+                    </p>
+                  </div>
+                </div>
+
+                {githubTestResult && (
+                  <div
+                    className={`p-3 rounded-lg text-xs border flex items-start gap-2.5 ${
+                      githubTestResult.success
+                        ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                        : 'bg-red-50 text-red-900 border-red-200'
+                    }`}
+                  >
+                    {githubTestResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <p className="font-semibold">{githubTestResult.message}</p>
+                      {githubTestResult.defaultBranch && (
+                        <p className="text-[11px] opacity-80 mt-0.5">
+                          Branch padrão do repositório: <code>{githubTestResult.defaultBranch}</code>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleTestGitHubConnection}
+                    disabled={isTestingGitHub || !githubRepoInput.trim() || !githubTokenInput.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs transition-colors disabled:opacity-50"
+                  >
+                    {isTestingGitHub ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Testando Conexão...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="w-3.5 h-3.5 text-teal-400" />
+                        <span>Testar Conexão</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveGitHubConfig}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-xs transition-colors"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Salvar Configuração</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Instructions Guide */}
+              <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-3">
+                <h4 className="font-bold text-slate-900 flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Como gerar seu token do GitHub em 3 passos:</span>
+                </h4>
+                <ol className="list-decimal list-inside space-y-1.5 text-slate-600 pl-1 leading-relaxed">
+                  <li>
+                    Acesse <a href="https://github.com/settings/tokens/new?scopes=repo&description=Painel+Admin+Imobiliaria" target="_blank" rel="noopener noreferrer" className="text-teal-700 font-semibold underline">github.com/settings/tokens/new</a> no seu navegador.
+                  </li>
+                  <li>
+                    Dê um nome (ex: <code>Painel Imobiliario</code>) e confirme se a opção <strong>repo</strong> está marcada.
+                  </li>
+                  <li>
+                    Clique em <strong>Generate token</strong> no final da página, copie o código gerado (começa com <code>ghp_</code>) e cole no campo acima.
+                  </li>
+                </ol>
+                <div className="p-3 bg-teal-50 rounded-lg border border-teal-200 text-teal-900 text-[11px] leading-relaxed">
+                  💡 <strong>Vantagem:</strong> Depois de salvar o token uma única vez, toda foto que você adicionar no painel vai direto para o repositório na pasta <code>public/fotos/</code> e a Vercel atualiza o site automaticamente para todos os celulares!
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* TAB: HOSPEDAGEM VERCEL (BLOB) */}
           {activeTab === 'vercel' && (
             <div className="max-w-4xl mx-auto space-y-6">
@@ -2550,11 +2922,31 @@ export const MID_BANNER_PROMOS = [
               <div className="p-4 rounded-xl bg-teal-50 border border-teal-200 space-y-3">
                 <h4 className="text-xs font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-teal-600" />
-                  <span>2. Salvar 100% no Frontend (Sem Banco de Dados)</span>
+                  <span>2. Como Publicar no Celular e no Ar (Sem Banco de Dados)</span>
                 </h4>
                 <p className="text-xs text-teal-800 leading-relaxed">
-                  Para que suas fotos e novos imóveis fiquem gravados permanentemente no código do site (visíveis no celular e em qualquer computador sem banco de dados), baixe ou copie o código TypeScript atualizado e substitua o arquivo <code>src/data/properties.ts</code> no seu projeto.
+                  Quando você adiciona fotos pelo painel no computador, elas ficam salvas no navegador local. Para que apareçam <strong>no celular e para todos os visitantes na Vercel</strong>, as fotos precisam ir para o GitHub via Git:
                 </p>
+
+                <div className="bg-white/80 rounded-lg p-3 border border-teal-200/60 text-xs text-teal-950 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">1</span>
+                    <span>Coloque os arquivos das fotos dentro da pasta <code>public/fotos/</code> no seu computador.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">2</span>
+                    <span>Clique em <strong>Baixar properties.ts Atualizado</strong> abaixo e substitua o arquivo <code>src/data/properties.ts</code>.</span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">3</span>
+                    <span>No seu terminal, envie para o GitHub: <code className="bg-slate-900 text-teal-300 px-1.5 py-0.5 rounded text-[11px]">git add . && git commit -m "Fotos" && git push</code></span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <span className="w-4 h-4 rounded-full bg-teal-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">4</span>
+                    <span>A <strong>Vercel</strong> compila o site automaticamente e as fotos passam a aparecer no seu celular e em qualquer dispositivo!</span>
+                  </div>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     onClick={handleDownloadTS}
