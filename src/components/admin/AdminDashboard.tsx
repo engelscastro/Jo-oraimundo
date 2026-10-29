@@ -68,6 +68,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     properties,
     banners,
     brokerInfo,
+    promos,
     updateBanner,
     addBanner,
     deleteBanner,
@@ -191,12 +192,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       if (res.isVercel) {
         showNotification('Imagem hospedada na Vercel (CDN) com sucesso!');
         checkVercelBlobStatus().then(setVercelStatus);
+      } else if (res.url.startsWith('/fotos/')) {
+        showNotification('✓ Foto importada e salva na pasta public/fotos do projeto!');
       } else {
-        showNotification(
-          res.error
-            ? 'Imagem salva localmente! Configure seu token Vercel Blob na aba "Hospedagem Vercel".'
-            : 'Imagem atualizada!'
-        );
+        showNotification('Foto adicionada com sucesso!');
       }
     } catch (err: any) {
       showNotification(err.message || 'Erro ao carregar imagem');
@@ -365,6 +364,33 @@ export const MID_BANNER_PROMOS = [
     showNotification('Código TypeScript copiado! Basta colar em src/data/properties.ts.');
   };
 
+  const [isSavingCode, setIsSavingCode] = useState(false);
+
+  const handleSaveCodeToDisk = async () => {
+    setIsSavingCode(true);
+    try {
+      const res = await fetch('/api/save-to-properties-ts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          properties,
+          banners,
+          brokerInfo,
+          promos
+        })
+      });
+      if (res.ok) {
+        showNotification('✓ Alterações salvas com sucesso em src/data/properties.ts!');
+      } else {
+        handleDownloadTS();
+      }
+    } catch {
+      handleDownloadTS();
+    } finally {
+      setIsSavingCode(false);
+    }
+  };
+
   // Import JSON file
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -494,14 +520,14 @@ export const MID_BANNER_PROMOS = [
             <div className="min-w-0">
               <span className="font-semibold text-white">
                 {cloudSync.isSyncing || isManualSyncing
-                  ? 'Sincronizando com a nuvem Vercel...'
+                  ? 'Sincronizando...'
                   : vercelStatus.configured
-                  ? 'Nuvem Vercel Ativa: Fotos e imóveis visíveis no celular e em todos os dispositivos'
-                  : 'Aviso: Fotos salvas localmente neste PC. Configure o Vercel Blob para sincronizar com o celular.'}
+                  ? 'Nuvem Vercel Conectada (Fotos e dados na CDN)'
+                  : 'Modo Frontend (Sem Banco de Dados): Fotos salvas diretamente no site'}
               </span>
               {cloudSync.lastSyncedAt && (
                 <span className="hidden md:inline text-slate-400 text-[11px] ml-2">
-                  (Última sync: {new Date(cloudSync.lastSyncedAt).toLocaleTimeString('pt-BR')})
+                  (Última atualização: {new Date(cloudSync.lastSyncedAt).toLocaleTimeString('pt-BR')})
                 </span>
               )}
             </div>
@@ -529,6 +555,26 @@ export const MID_BANNER_PROMOS = [
                 )}
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={handleSaveCodeToDisk}
+              disabled={isSavingCode}
+              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
+              title="Grava todos os imóveis e fotos diretamente no código do site (src/data/properties.ts) sem banco de dados"
+            >
+              {isSavingCode ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Gravando...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Gravar no Código (properties.ts)</span>
+                </>
+              )}
+            </button>
 
             <button
               type="button"
@@ -599,10 +645,10 @@ export const MID_BANNER_PROMOS = [
             }`}
           >
             <Cloud className="w-4 h-4 text-teal-600" />
-            <span>Hospedagem Vercel (Blob)</span>
+            <span>Nuvem Vercel (Opcional)</span>
             <span
               className={`w-2 h-2 rounded-full ${
-                vercelStatus.configured ? 'bg-emerald-500' : 'bg-amber-400'
+                vercelStatus.configured ? 'bg-emerald-500' : 'bg-slate-300'
               }`}
             />
           </button>

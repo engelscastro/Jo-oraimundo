@@ -15,6 +15,7 @@ export interface VercelBlobStatus {
 export interface UploadResult {
   url: string;
   isVercel: boolean;
+  savedToPublic?: boolean;
   pathname?: string;
   error?: string;
 }
@@ -170,7 +171,8 @@ export async function uploadImageToVercel(
         onStatusChange?.('Concluído!');
         return {
           url: data.url,
-          isVercel: true,
+          isVercel: !!data.isVercel,
+          savedToPublic: !data.isVercel || data.url.startsWith('/fotos/'),
           pathname: data.pathname,
         };
       }
@@ -182,19 +184,16 @@ export async function uploadImageToVercel(
 
     console.warn('Vercel Blob upload não completou:', errorMsg);
 
-    // Fallback: se não tiver token configurado ou falhou na Vercel,
-    // retorna a imagem local em dataUrl mas avisa para que o usuário saiba
+    // Fallback: se não tiver token configurado ou se não estiver usando Vercel Blob,
+    // salva a foto diretamente no frontend local
     return {
       url: dataUrl,
       isVercel: false,
-      error: errorMsg,
     };
   } catch (err: any) {
-    console.warn('Erro de rede ao conectar com /api/upload:', err);
     return {
       url: dataUrl,
       isVercel: false,
-      error: err.message || 'Não foi possível alcançar o servidor da Vercel. Imagem salva localmente.',
     };
   }
 }

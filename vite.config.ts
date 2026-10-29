@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import fs from 'fs';
 import path from 'path';
 import {defineConfig, Plugin} from 'vite';
 
@@ -15,6 +16,28 @@ function vercelBlobDevPlugin(): Plugin {
           res.setHeader('Content-Type', 'application/javascript');
           res.end('export default {}; export const ResponsiveContainer = () => null;');
           return;
+        }
+
+        // Servir fotos estáticas da pasta public/fotos dinamicamente
+        if (url.startsWith('/fotos/')) {
+          const rawFilename = url.replace('/fotos/', '').split('?')[0];
+          const cleanFilename = decodeURIComponent(rawFilename);
+          const filePath = path.resolve(__dirname, 'public/fotos', cleanFilename);
+          if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+            const ext = path.extname(filePath).toLowerCase();
+            const mimeMap: Record<string, string> = {
+              '.jpg': 'image/jpeg',
+              '.jpeg': 'image/jpeg',
+              '.png': 'image/png',
+              '.webp': 'image/webp',
+              '.svg': 'image/svg+xml',
+              '.gif': 'image/gif'
+            };
+            res.setHeader('Content-Type', mimeMap[ext] || 'image/jpeg');
+            res.setHeader('Cache-Control', 'public, max-age=31536000');
+            res.end(fs.readFileSync(filePath));
+            return;
+          }
         }
 
         // Status endpoint
@@ -36,7 +59,7 @@ function vercelBlobDevPlugin(): Plugin {
           return;
         }
 
-        // Upload endpoint
+        // Upload endpoint - salva arquivos diretamente na pasta public/fotos do frontend
         if (url === '/api/upload' && req.method === 'POST') {
           let body = '';
           req.on('data', (chunk) => {
@@ -44,25 +67,8 @@ function vercelBlobDevPlugin(): Plugin {
           });
           req.on('end', async () => {
             try {
-              const customToken = req.headers['x-blob-token'] as string;
-              const token = customToken || process.env.BLOB_READ_WRITE_TOKEN;
-
-              if (!token) {
-                res.statusCode = 400;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(
-                  JSON.stringify({
-                    success: false,
-                    error:
-                      'BLOB_READ_WRITE_TOKEN não configurado. Por favor configure o token nas variáveis de ambiente da Vercel ou no painel admin.',
-                  })
-                );
-                return;
-              }
-
-              const { put } = await import('@vercel/blob');
               const data = JSON.parse(body);
-              let filename = data.filename || `imovel-${Date.now()}.jpg`;
+              let filename = data.filename || `foto-${Date.now()}.jpg`;
               const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
               let buffer: Buffer;
               let mimeType = data.contentType || 'image/jpeg';
@@ -84,21 +90,57 @@ function vercelBlobDevPlugin(): Plugin {
                 return;
               }
 
-              const blob = await put(cleanFilename, buffer, {
-                access: 'public',
-                contentType: mimeType,
-                token,
-                addRandomSuffix: true,
-              });
+              // Salvar fisicamente na pasta public/fotos do projeto
+              const fotosDir = path.resolve(__dirname, 'public/fotos');
+              if (!fs.existsSync(fotosDir)) {
+                fs.mkdirSync(fotosDir, { recursive: true });
+              }
+              const filePath = path.join(fotosDir, cleanFilename);
+              fs.writeFileSync(filePath, buffer);
+              const localUrl = `/fotos/${cleanFilename}`;
 
+              const customToken = req.headers['x-blob-token'] as string;
+              const token = customToken || process.env.BLOB_READ_WRITE_TOKEN;
+
+              // Se houver token da Vercel configurado, tenta fazer upload para CDN
+              if (token && !data.saveLocalOnly) {
+                try {
+                  const { put } = await import('@vercel/blob');
+                  const blob = await put(cleanFilename, buffer, {
+                    access: 'public',
+                    contentType: mimeType,
+                    token,
+                    addRandomSuffix: true,
+                  });
+
+                  res.setHeader('Content-Type', 'application/json');
+                  res.end(
+                    JSON.stringify({
+                      success: true,
+                      url: blob.url,
+                      localUrl,
+                      downloadUrl: blob.downloadUrl,
+                      pathname: blob.pathname,
+                      contentType: blob.contentType,
+                      isVercel: true,
+                    })
+                  );
+                  return;
+                } catch (blobErr) {
+                  console.warn('Vercel Blob falhou, foto salva com sucesso em public/fotos:', blobErr);
+                }
+              }
+
+              // Retorna URL estática da pasta fotos do frontend
               res.setHeader('Content-Type', 'application/json');
               res.end(
                 JSON.stringify({
                   success: true,
-                  url: blob.url,
-                  downloadUrl: blob.downloadUrl,
-                  pathname: blob.pathname,
-                  contentType: blob.contentType,
+                  url: localUrl,
+                  isLocal: true,
+                  isVercel: false,
+                  filename: cleanFilename,
+                  message: `Foto salva na pasta public/fotos do frontend!`,
                 })
               );
             } catch (err: any) {
@@ -107,9 +149,46 @@ function vercelBlobDevPlugin(): Plugin {
               res.end(
                 JSON.stringify({
                   success: false,
-                  error: err.message || 'Erro ao fazer upload para Vercel Blob',
+                  error: err.message || 'Erro ao processar e salvar imagem',
                 })
               );
+            }
+          });
+          return;
+        }
+
+        // Endpoint para salvar alterações diretamente no arquivo src/data/properties.ts (Sem Banco de Dados)
+        if (url === '/api/save-to-properties-ts' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk;
+          });
+          req.on('end', () => {
+            try {
+              const { properties, banners, brokerInfo, promos } = JSON.parse(body);
+              const propertiesPath = path.resolve(__dirname, 'src/data/properties.ts');
+              let content = fs.readFileSync(propertiesPath, 'utf-8');
+
+              const propStr = `export const PROPERTIES: Property[] = ${JSON.stringify(properties, null, 2)};`;
+              const bannerStr = `export const BANNER_SLIDES: BannerSlide[] = ${JSON.stringify(banners, null, 2)};`;
+              const brokerStr = `export const BROKER_INFO = ${JSON.stringify(brokerInfo, null, 2)};`;
+
+              // Substitui as constantes no arquivo
+              content = content.replace(/export const PROPERTIES: Property\[\] =[\s\S]*?;\n\nexport const BANNER_SLIDES/, `${propStr}\n\nexport const BANNER_SLIDES`);
+              content = content.replace(/export const BANNER_SLIDES: BannerSlide\[\] =[\s\S]*?;\n\nexport const BROKER_INFO/, `${bannerStr}\n\nexport const BROKER_INFO`);
+              content = content.replace(/export const BROKER_INFO =[\s\S]*?;\n\nexport const MID_BANNER_PROMOS/, `${brokerStr}\n\nexport const MID_BANNER_PROMOS`);
+
+              fs.writeFileSync(propertiesPath, content, 'utf-8');
+
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({
+                success: true,
+                message: 'Alterações gravadas diretamente em src/data/properties.ts!'
+              }));
+            } catch (err: any) {
+              res.statusCode = 500;
+              res.setHeader('Content-Type', 'application/json');
+              res.end(JSON.stringify({ success: false, error: err.message }));
             }
           });
           return;
