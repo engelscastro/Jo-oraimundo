@@ -242,12 +242,15 @@ export async function uploadFileToGitHub(
     }
 
     const resData = await putRes.json();
-    const publicUrl = `/${cleanPath.replace(/^public\//, '')}`;
+    const downloadUrl =
+      resData.content?.download_url ||
+      `https://raw.githubusercontent.com/${config.repo}/${branch}/${cleanPath}`;
+    const relativeUrl = `/${cleanPath.replace(/^public\//, '')}`;
 
     return {
       success: true,
-      url: publicUrl,
-      githubUrl: resData.content?.html_url,
+      url: downloadUrl || relativeUrl,
+      githubUrl: resData.content?.html_url || downloadUrl,
       commitSha: resData.commit?.sha,
     };
   } catch (err: any) {
@@ -256,6 +259,63 @@ export async function uploadFileToGitHub(
       url: '',
       error: err.message || 'Erro de conexão ao enviar arquivo para o GitHub',
     };
+  }
+}
+
+/**
+ * Converte URLs relativas como /fotos/nome.jpg para a CDN crua do GitHub
+ * quando o repositório estiver configurado, garantindo renderização instantânea em qualquer dispositivo.
+ */
+export function resolveImageUrl(url?: string): string {
+  if (!url) return '';
+
+  // Se já for uma URL remota completa, base64 ou blob, retorna diretamente
+  if (
+    url.startsWith('data:') ||
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('blob:')
+  ) {
+    return url;
+  }
+
+  // Se for um caminho relativo para fotos do projeto (ex: /fotos/imagem.jpg)
+  if (url.startsWith('/fotos/') || url.startsWith('fotos/')) {
+    const config = getGitHubConfig();
+    if (config.repo) {
+      const branch = config.branch || 'main';
+      const cleanPath = url.startsWith('/') ? url.slice(1) : url;
+      return `https://raw.githubusercontent.com/${config.repo}/${branch}/public/${cleanPath}`;
+    }
+  }
+
+  return url;
+}
+
+/**
+ * Event handler onError para a tag <img>
+ * Se o arquivo estático /fotos/... falhar na Vercel (status 404),
+ * troca automaticamente o src para a CDN do GitHub em tempo de execução.
+ */
+export function handleImageError(
+  e: React.SyntheticEvent<HTMLImageElement, Event>,
+  originalUrl?: string
+) {
+  const target = e.currentTarget;
+  if (target.dataset.hasFailed) return;
+  target.dataset.hasFailed = 'true';
+
+  const urlToUse = originalUrl || target.getAttribute('src') || '';
+  const config = getGitHubConfig();
+
+  if (config.repo) {
+    const branch = config.branch || 'main';
+    const match = urlToUse.match(/\/fotos\/(.+)$/);
+    if (match) {
+      const photoName = match[1];
+      target.src = `https://raw.githubusercontent.com/${config.repo}/${branch}/public/fotos/${photoName}`;
+      return;
+    }
   }
 }
 

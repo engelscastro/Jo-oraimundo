@@ -1,6 +1,7 @@
 import React from 'react';
 import { Award, ShieldCheck, CheckCircle2, Phone, Mail, MapPin, MessageCircle, Star } from 'lucide-react';
 import { BROKER_INFO } from '../data/properties';
+import { resolveImageUrl, handleImageError } from '../services/githubService';
 
 interface AboutBrokerProps {
   brokerInfo?: typeof BROKER_INFO;
@@ -28,7 +29,8 @@ export const AboutBroker: React.FC<AboutBrokerProps> = ({ brokerInfo = BROKER_IN
                 {/* Visual Avatar / Portrait Representation */}
                 {brokerInfo.avatarUrl ? (
                   <img
-                    src={brokerInfo.avatarUrl}
+                    src={resolveImageUrl(brokerInfo.avatarUrl)}
+                    onError={(e) => handleImageError(e, brokerInfo.avatarUrl)}
                     alt={brokerInfo.name}
                     referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover"

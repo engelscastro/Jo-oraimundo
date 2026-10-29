@@ -32,11 +32,21 @@ export interface SaveCatalogResult {
 export async function fetchSharedCatalog(): Promise<FetchCatalogResult> {
   const customToken = getVercelBlobToken();
 
+  // Se não há token Vercel válido ou se for um token do GitHub, não faz requisição desnecessária
+  if (!customToken || customToken.startsWith('ghp_') || customToken.startsWith('github_pat_')) {
+    return {
+      success: false,
+      configured: false,
+      found: false,
+      data: null,
+      error: 'Vercel Blob não configurado.',
+    };
+  }
+
   try {
-    const headers: Record<string, string> = {};
-    if (customToken) {
-      headers['x-blob-token'] = customToken;
-    }
+    const headers: Record<string, string> = {
+      'x-blob-token': customToken,
+    };
 
     const res = await fetch(`/api/data?t=${Date.now()}`, { headers });
     if (!res.ok) {
@@ -69,13 +79,19 @@ export async function fetchSharedCatalog(): Promise<FetchCatalogResult> {
 export async function saveSharedCatalog(data: SharedCatalogData): Promise<SaveCatalogResult> {
   const customToken = getVercelBlobToken();
 
+  // Se não há token Vercel válido ou se for um token do GitHub, não tenta salvar no Vercel Blob
+  if (!customToken || customToken.startsWith('ghp_') || customToken.startsWith('github_pat_')) {
+    return {
+      success: false,
+      error: 'Vercel Blob não configurado.',
+    };
+  }
+
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'x-blob-token': customToken,
     };
-    if (customToken) {
-      headers['x-blob-token'] = customToken;
-    }
 
     const res = await fetch('/api/data', {
       method: 'POST',

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Property, BROKER_INFO } from '../data/properties';
 import { useRealEstate } from '../context/RealEstateContext';
+import { resolveImageUrl, handleImageError } from '../services/githubService';
 
 interface PropertyModalProps {
   property: Property | null;
@@ -127,7 +128,8 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
           <div className="space-y-3">
             <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden bg-slate-950 shadow-md">
               <img
-                src={images[activeImageIdx]?.url}
+                src={resolveImageUrl(images[activeImageIdx]?.url)}
+                onError={(e) => handleImageError(e, images[activeImageIdx]?.url)}
                 alt={images[activeImageIdx]?.title}
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
@@ -174,7 +176,8 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
                   }`}
                 >
                   <img
-                    src={img.url}
+                    src={resolveImageUrl(img.url)}
+                    onError={(e) => handleImageError(e, img.url)}
                     alt={img.title}
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover"

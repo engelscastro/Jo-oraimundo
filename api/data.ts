@@ -74,11 +74,11 @@ export default async function handler(req: any, res: any) {
   // POST: Salvar ou atualizar o catálogo completo no Vercel Blob
   if (req.method === 'POST') {
     try {
-      if (!token) {
-        return res.status(400).json({
+      if (!token || token.startsWith('ghp_') || token.startsWith('github_pat_')) {
+        return res.status(200).json({
           success: false,
-          error:
-            'BLOB_READ_WRITE_TOKEN não configurado. Por favor, forneça o token nas variáveis de ambiente da Vercel ou nas configurações.',
+          configured: false,
+          message: 'Vercel Blob não configurado. Modo de armazenamento frontend ativo.',
         });
       }
 

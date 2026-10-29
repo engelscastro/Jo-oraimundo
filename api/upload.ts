@@ -26,10 +26,11 @@ export default async function handler(req: any, res: any) {
     const customToken = req.headers['x-blob-token'];
     const token = customToken || process.env.BLOB_READ_WRITE_TOKEN;
 
-    if (!token) {
-      return res.status(400).json({
+    if (!token || token.startsWith('ghp_') || token.startsWith('github_pat_')) {
+      return res.status(200).json({
         success: false,
-        error: 'BLOB_READ_WRITE_TOKEN não configurado. Por favor, forneça o token do Vercel Blob nas variáveis de ambiente da Vercel ou no painel administrativo.',
+        isVercel: false,
+        message: 'Vercel Blob não configurado. Use a aba GitHub para salvar fotos em public/fotos/.',
       });
     }
 

@@ -720,3 +720,98 @@ export const MID_BANNER_PROMOS = [
     action: "open_whatsapp"
   }
 ];
+
+export interface NeighborhoodInfo {
+  name: string;
+  slug: string;
+  headline: string;
+  description: string;
+  highlights: string[];
+  avgPricePerSqm: string;
+  propertyCount: number;
+  coverGradient: string;
+}
+
+export const NEIGHBORHOODS: NeighborhoodInfo[] = [
+  {
+    name: "Ponta Verde",
+    slug: "ponta-verde",
+    headline: "O Bairro Mais Desejado e Nobre da Orla de Maceió",
+    description: "Referência absoluta em qualidade de vida com calçadão vibrante, quiosques famosos (Lopana e Kanoa), feirinha de artesanato e piscinas naturais mornas.",
+    highlights: ["Orla marítima com faixa viva para pedestres", "Polo gastronômico refinado", "Escolas e serviços de alto padrão"],
+    avgPricePerSqm: "R$ 11.500 / m²",
+    propertyCount: 14,
+    coverGradient: "from-teal-600 to-cyan-700"
+  },
+  {
+    name: "Jatiúca",
+    slug: "jatiuca",
+    headline: "A Combinação Perfeita de Praia, Lazer e Gastronomia",
+    description: "Famoso pelo corredor gastronômico da Av. Dr. Antônio Gomes de Barros, praias com boas ondas e infraestrutura completa para moradia ou investimento.",
+    highlights: ["Melhores restaurantes e bistrôs de Alagoas", "Praia vibrante com ciclovia contínua", "Lançamentos imobiliários modernos"],
+    avgPricePerSqm: "R$ 10.200 / m²",
+    propertyCount: 18,
+    coverGradient: "from-cyan-700 to-blue-800"
+  },
+  {
+    name: "Pajuçara",
+    slug: "pajucara",
+    headline: "O Cartão Postal das Jangadas e Piscinas Naturais",
+    description: "Mar tranquilo de águas calmas e límpidas, perfeito para famílias com crianças e com o maior índice de rentabilidade em locação por temporada (Airbnb).",
+    highlights: ["Passeios de jangada às piscinas naturais", "Feira de Artesanato de Maceió", "Excelente retorno de locação por diária"],
+    avgPricePerSqm: "R$ 9.800 / m²",
+    propertyCount: 12,
+    coverGradient: "from-emerald-600 to-teal-700"
+  },
+  {
+    name: "Guaxuma & Litoral Norte",
+    slug: "guaxuma",
+    headline: "O Novo Vetor de Crescimento e Condomínios Fechados",
+    description: "A poucos minutos do Parque Shopping, cercado por coqueirais e mar aberto paradisíaco. A escolha preferida de quem busca exclusividade e contato com a natureza.",
+    highlights: ["Condomínios de alto luxo à beira-mar", "Região em plena valorização acelerada", "Praias preservadas e tranquilas"],
+    avgPricePerSqm: "R$ 8.900 / m²",
+    propertyCount: 9,
+    coverGradient: "from-blue-700 to-teal-800"
+  }
+];
+
+export interface Testimonial {
+  name: string;
+  role: string;
+  location: string;
+  property: string;
+  rating: number;
+  date: string;
+  comment: string;
+}
+
+export const TESTIMONIALS: Testimonial[] = [
+  {
+    name: "Eduardo & Mariana Silveira",
+    role: "Médicos",
+    location: "São Paulo - SP",
+    property: "Residencial Mare Nostrum · Ponta Verde",
+    rating: 5,
+    date: "Fevereiro de 2026",
+    comment: "Procurávamos um apartamento de frente para o mar para as férias da família e futura moradia. O João Raimundo foi impecável, fez vídeo-chamada ao vivo de cada detalhe da obra e cuidou de toda a burocracia documental. Atendimento nota 10!"
+  },
+  {
+    name: "Ricardo Mendonça",
+    role: "Empresário & Investidor",
+    location: "Brasília - DF",
+    property: "Studio Premium · Pajuçara",
+    rating: 5,
+    date: "Janeiro de 2026",
+    comment: "Comprei dois studios para locação por temporada por indicação do João. Os imóveis entregam exatamente a rentabilidade que ele calculou no estudo financeiro inicial. Transparência e conhecimento de mercado incomparáveis."
+  },
+  {
+    name: "Patrícia Cavalcante",
+    role: "Advogada",
+    location: "Maceió - AL",
+    property: "Edifício Porto Bellagio · Jatiúca",
+    rating: 5,
+    date: "Março de 2026",
+    comment: "João Raimundo me ajudou a encontrar a planta perfeita para a minha família na Jatiúca, a duas quadras da praia. Negociação justa com a construtora e suporte em todas as etapas até o cartório."
+  }
+];
+

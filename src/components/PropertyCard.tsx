@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Property, BROKER_INFO } from '../data/properties';
 import { useRealEstate } from '../context/RealEstateContext';
+import { resolveImageUrl, handleImageError } from '../services/githubService';
 
 interface PropertyCardProps {
   property: Property;
@@ -64,7 +65,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
       <div className="relative aspect-[16/10] w-full bg-slate-900 overflow-hidden">
         {/* Active Image */}
         <img
-          src={images[currentImageIndex]?.url}
+          src={resolveImageUrl(images[currentImageIndex]?.url)}
+          onError={(e) => handleImageError(e, images[currentImageIndex]?.url)}
           alt={`${property.title} - ${images[currentImageIndex]?.title}`}
           referrerPolicy="no-referrer"
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"

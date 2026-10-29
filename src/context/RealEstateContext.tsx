@@ -13,7 +13,7 @@ import {
   migrateLocalImagesToVercel,
   SharedCatalogData 
 } from '../services/siteDataService';
-import { checkVercelBlobStatus } from '../services/vercelBlobService';
+import { checkVercelBlobStatus, getVercelBlobToken } from '../services/vercelBlobService';
 
 export type BrokerInfoType = typeof INITIAL_BROKER;
 export type PromoBannerType = typeof INITIAL_PROMOS[0];
@@ -314,6 +314,11 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   // Auto-sync debounced helper
   const scheduleAutoSync = useCallback(() => {
+    const token = getVercelBlobToken();
+    if (!token || token.startsWith('ghp_') || token.startsWith('github_pat_')) {
+      // Modo frontend estático / GitHub: não faz chamadas de nuvem Vercel Blob
+      return;
+    }
     if (autoSyncTimeoutRef.current) {
       clearTimeout(autoSyncTimeoutRef.current);
     }

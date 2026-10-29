@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Search, MapPin, Bed, DollarSign, Building, Sparkles, ArrowRight, MessageCircle } from 'lucide-react';
 import { BANNER_SLIDES, BannerSlide, MACEIO_BAIRROS_BY_REGION } from '../data/properties';
+import { resolveImageUrl, handleImageError } from '../services/githubService';
 
 interface HeroCarouselProps {
   banners?: BannerSlide[];
@@ -92,7 +93,8 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({
         {/* Crisp photo with ZERO shading / ZERO dark overlay */}
         {slide.imageUrl ? (
           <img
-            src={slide.imageUrl}
+            src={resolveImageUrl(slide.imageUrl)}
+            onError={(e) => handleImageError(e, slide.imageUrl)}
             alt={slide.title}
             referrerPolicy="no-referrer"
             className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"

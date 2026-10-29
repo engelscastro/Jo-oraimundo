@@ -51,6 +51,8 @@ import {
   testGitHubConnection,
   uploadPhotoToGitHub,
   commitPropertiesTsToGitHub,
+  resolveImageUrl,
+  handleImageError,
   GitHubConfig,
   GitHubTestResult
 } from '../../services/githubService';
@@ -412,6 +414,100 @@ export const MID_BANNER_PROMOS = [
     description: "Rentabilidade consistente em locação por temporada de frente para as piscinas naturais. Receba estudo completo de rentabilidade.",
     cta: "Falar com João no WhatsApp",
     action: "open_whatsapp"
+  }
+];
+
+export interface NeighborhoodInfo {
+  name: string;
+  slug: string;
+  headline: string;
+  description: string;
+  highlights: string[];
+  avgPricePerSqm: string;
+  propertyCount: number;
+  coverGradient: string;
+}
+
+export const NEIGHBORHOODS: NeighborhoodInfo[] = [
+  {
+    name: "Ponta Verde",
+    slug: "ponta-verde",
+    headline: "O Bairro Mais Desejado e Nobre da Orla de Maceió",
+    description: "Referência absoluta em qualidade de vida com calçadão vibrante, quiosques famosos (Lopana e Kanoa), feirinha de artesanato e piscinas naturais mornas.",
+    highlights: ["Orla marítima com faixa viva para pedestres", "Polo gastronômico refinado", "Escolas e serviços de alto padrão"],
+    avgPricePerSqm: "R$ 11.500 / m²",
+    propertyCount: 14,
+    coverGradient: "from-teal-600 to-cyan-700"
+  },
+  {
+    name: "Jatiúca",
+    slug: "jatiuca",
+    headline: "A Combinação Perfeita de Praia, Lazer e Gastronomia",
+    description: "Famoso pelo corredor gastronômico da Av. Dr. Antônio Gomes de Barros, praias com boas ondas e infraestrutura completa para moradia ou investimento.",
+    highlights: ["Melhores restaurantes e bistrôs de Alagoas", "Praia vibrante com ciclovia contínua", "Lançamentos imobiliários modernos"],
+    avgPricePerSqm: "R$ 10.200 / m²",
+    propertyCount: 18,
+    coverGradient: "from-cyan-700 to-blue-800"
+  },
+  {
+    name: "Pajuçara",
+    slug: "pajucara",
+    headline: "O Cartão Postal das Jangadas e Piscinas Naturais",
+    description: "Mar tranquilo de águas calmas e límpidas, perfeito para famílias com crianças e com o maior índice de rentabilidade em locação por temporada (Airbnb).",
+    highlights: ["Passeios de jangada às piscinas naturais", "Feira de Artesanato de Maceió", "Excelente retorno de locação por diária"],
+    avgPricePerSqm: "R$ 9.800 / m²",
+    propertyCount: 12,
+    coverGradient: "from-emerald-600 to-teal-700"
+  },
+  {
+    name: "Guaxuma & Litoral Norte",
+    slug: "guaxuma",
+    headline: "O Novo Vetor de Crescimento e Condomínios Fechados",
+    description: "A poucos minutos do Parque Shopping, cercado por coqueirais e mar aberto paradisíaco. A escolha preferida de quem busca exclusividade e contato com a natureza.",
+    highlights: ["Condomínios de alto luxo à beira-mar", "Região em plena valorização acelerada", "Praias preservadas e tranquilas"],
+    avgPricePerSqm: "R$ 8.900 / m²",
+    propertyCount: 9,
+    coverGradient: "from-blue-700 to-teal-800"
+  }
+];
+
+export interface Testimonial {
+  name: string;
+  role: string;
+  location: string;
+  property: string;
+  rating: number;
+  date: string;
+  comment: string;
+}
+
+export const TESTIMONIALS: Testimonial[] = [
+  {
+    name: "Eduardo & Mariana Silveira",
+    role: "Médicos",
+    location: "São Paulo - SP",
+    property: "Residencial Mare Nostrum · Ponta Verde",
+    rating: 5,
+    date: "Fevereiro de 2026",
+    comment: "Procurávamos um apartamento de frente para o mar para as férias da família e futura moradia. O João Raimundo foi impecável, fez vídeo-chamada ao vivo de cada detalhe da obra e cuidou de toda a burocracia documental. Atendimento nota 10!"
+  },
+  {
+    name: "Ricardo Mendonça",
+    role: "Empresário & Investidor",
+    location: "Brasília - DF",
+    property: "Studio Premium · Pajuçara",
+    rating: 5,
+    date: "Janeiro de 2026",
+    comment: "Comprei dois studios para locação por temporada por indicação do João. Os imóveis entregam exatamente a rentabilidade que ele calculou no estudo financeiro inicial. Transparência e conhecimento de mercado incomparáveis."
+  },
+  {
+    name: "Patrícia Cavalcante",
+    role: "Advogada",
+    location: "Maceió - AL",
+    property: "Edifício Porto Bellagio · Jatiúca",
+    rating: 5,
+    date: "Março de 2026",
+    comment: "João Raimundo me ajudou a encontrar a planta perfeita para a minha família na Jatiúca, a duas quadras da praia. Negociação justa com a construtora e suporte em todas as etapas até o cartório."
   }
 ];
 `;
@@ -998,11 +1094,17 @@ export const MID_BANNER_PROMOS = [
                           {slide.imageUrl ? (
                             <>
                               <img
-                                src={slide.imageUrl}
+                                src={resolveImageUrl(slide.imageUrl)}
+                                onError={(e) => handleImageError(e, slide.imageUrl)}
                                 alt={slide.title}
                                 className="w-full h-full object-cover"
                               />
-                              {isVercelBlobUrl(slide.imageUrl) ? (
+                              {slide.imageUrl?.includes('github') || slide.imageUrl?.includes('raw.githubusercontent') ? (
+                                <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900/90 text-teal-300 border border-teal-500/40 shadow-sm backdrop-blur-xs">
+                                  <GitCommit className="w-3 h-3 text-teal-400" />
+                                  <span>GitHub CDN</span>
+                                </span>
+                              ) : isVercelBlobUrl(slide.imageUrl) ? (
                                 <span className="absolute top-2 left-2 z-10 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-900/90 text-emerald-200 border border-emerald-500/40 shadow-sm backdrop-blur-xs">
                                   <Cloud className="w-3 h-3 text-emerald-400" />
                                   <span>Vercel CDN</span>
@@ -1745,13 +1847,19 @@ export const MID_BANNER_PROMOS = [
                               className="group relative rounded-lg overflow-hidden border border-slate-200 bg-slate-900 aspect-[4/3]"
                             >
                               <img
-                                src={img.url}
+                                src={resolveImageUrl(img.url)}
+                                onError={(e) => handleImageError(e, img.url)}
                                 alt={img.title}
                                 className="w-full h-full object-cover"
                               />
 
-                              {/* Vercel Badge */}
-                              {isVercel ? (
+                              {/* GitHub / Vercel Badge */}
+                              {img.url?.includes('github') || img.url?.includes('raw.githubusercontent') ? (
+                                <span className="absolute top-1 left-1 z-10 bg-slate-900/90 text-teal-300 text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow backdrop-blur-xs border border-teal-500/30">
+                                  <GitCommit className="w-2.5 h-2.5 text-teal-400" />
+                                  <span>GitHub</span>
+                                </span>
+                              ) : isVercel ? (
                                 <span className="absolute top-1 left-1 z-10 bg-emerald-600/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow backdrop-blur-xs">
                                   <Cloud className="w-2.5 h-2.5" />
                                   <span>Vercel</span>
@@ -2057,11 +2165,17 @@ export const MID_BANNER_PROMOS = [
                   {brokerInfo.avatarUrl ? (
                     <>
                       <img
-                        src={brokerInfo.avatarUrl}
+                        src={resolveImageUrl(brokerInfo.avatarUrl)}
+                        onError={(e) => handleImageError(e, brokerInfo.avatarUrl)}
                         alt={brokerInfo.name}
                         className="w-full h-full object-cover"
                       />
-                      {isVercelBlobUrl(brokerInfo.avatarUrl) ? (
+                      {brokerInfo.avatarUrl?.includes('github') || brokerInfo.avatarUrl?.includes('raw.githubusercontent') ? (
+                        <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-900/90 text-teal-300 border border-teal-500/40 shadow">
+                          <GitCommit className="w-2.5 h-2.5 text-teal-400" />
+                          <span>GitHub</span>
+                        </span>
+                      ) : isVercelBlobUrl(brokerInfo.avatarUrl) ? (
                         <span className="absolute top-1.5 left-1.5 z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-900/90 text-emerald-200 border border-emerald-500/40 shadow">
                           <Cloud className="w-2.5 h-2.5" />
                           <span>Vercel</span>
@@ -2862,7 +2976,8 @@ export const MID_BANNER_PROMOS = [
                       <div key={b.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-3 min-w-0">
                           <img
-                            src={b.imageUrl}
+                            src={resolveImageUrl(b.imageUrl)}
+                            onError={(e) => handleImageError(e, b.imageUrl)}
                             alt={b.title}
                             className="w-12 h-8 rounded object-cover bg-slate-900 shrink-0 border border-slate-200"
                           />
@@ -2919,7 +3034,8 @@ export const MID_BANNER_PROMOS = [
                         <div key={`${p.id}-${img.id}`} className="py-2.5 flex items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-3 min-w-0">
                             <img
-                              src={img.url}
+                              src={resolveImageUrl(img.url)}
+                              onError={(e) => handleImageError(e, img.url)}
                               alt={img.title}
                               className="w-12 h-8 rounded object-cover bg-slate-900 shrink-0 border border-slate-200"
                             />
@@ -2932,7 +3048,12 @@ export const MID_BANNER_PROMOS = [
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            {isVercel ? (
+                            {img.url?.includes('github') || img.url?.includes('raw.githubusercontent') ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 text-teal-300 border border-teal-500/30">
+                                <GitCommit className="w-3 h-3 text-teal-400" />
+                                <span>GitHub CDN</span>
+                              </span>
+                            ) : isVercel ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
                                 <Cloud className="w-3 h-3 text-emerald-600" />
                                 <span>Vercel CDN</span>
@@ -2956,7 +3077,7 @@ export const MID_BANNER_PROMOS = [
                                 }
                                 className="px-2.5 py-1 text-[11px] font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 rounded-md border border-teal-200"
                               >
-                                Enviar p/ Vercel
+                                Salvar no GitHub
                               </button>
                             )}
 
@@ -2979,7 +3100,8 @@ export const MID_BANNER_PROMOS = [
                     <div className="py-2.5 flex items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-3 min-w-0">
                         <img
-                          src={brokerInfo.avatarUrl}
+                          src={resolveImageUrl(brokerInfo.avatarUrl)}
+                          onError={(e) => handleImageError(e, brokerInfo.avatarUrl)}
                           alt={brokerInfo.name}
                           className="w-12 h-8 rounded object-cover bg-slate-900 shrink-0 border border-slate-200"
                         />
