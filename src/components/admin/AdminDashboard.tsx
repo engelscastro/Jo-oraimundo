@@ -147,6 +147,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   // Manual Photo URL / Frontend Path addition state
   const [newManualPhotoUrl, setNewManualPhotoUrl] = useState('');
   const [newManualPhotoTitle, setNewManualPhotoTitle] = useState('');
+  const [isSavingCode, setIsSavingCode] = useState(false);
 
   // Selected property reference
   const currentProperty = properties.find((p) => p.id === selectedPropertyId) || properties[0];
@@ -363,8 +364,6 @@ export const MID_BANNER_PROMOS = [
     navigator.clipboard.writeText(code);
     showNotification('Código TypeScript copiado! Basta colar em src/data/properties.ts.');
   };
-
-  const [isSavingCode, setIsSavingCode] = useState(false);
 
   const handleSaveCodeToDisk = async () => {
     setIsSavingCode(true);

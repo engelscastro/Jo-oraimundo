@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   ChevronLeft, 
@@ -33,14 +33,21 @@ export const PropertyModal: React.FC<PropertyModalProps> = ({
   const { brokerInfo } = useRealEstate();
   const currentBroker = brokerInfo || BROKER_INFO;
 
-  if (!property) return null;
-
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [leadName, setLeadName] = useState('');
   const [leadPhone, setLeadPhone] = useState('');
   const [leadDate, setLeadDate] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  // Reset indices when property changes
+  useEffect(() => {
+    setActiveImageIdx(0);
+    setSelectedCategory('all');
+    setSubmitted(false);
+  }, [property?.id]);
+
+  if (!property) return null;
 
   const images = property.images;
   const filteredImages = selectedCategory === 'all' 

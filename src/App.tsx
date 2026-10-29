@@ -346,17 +346,21 @@ function LandingPageContent() {
       </button>
 
       {/* Property Details Modal */}
-      <PropertyModal
-        property={selectedProperty}
-        onClose={() => setSelectedProperty(null)}
-        onOpenSimulator={handleOpenSimulator}
-      />
+      {selectedProperty && (
+        <PropertyModal
+          property={selectedProperty}
+          onClose={() => setSelectedProperty(null)}
+          onOpenSimulator={handleOpenSimulator}
+        />
+      )}
 
       {/* Full Admin Dashboard Modal */}
-      <AdminDashboard
-        isOpen={isAdminOpen}
-        onClose={() => setIsAdminOpen(false)}
-      />
+      {isAdminOpen && (
+        <AdminDashboard
+          isOpen={isAdminOpen}
+          onClose={() => setIsAdminOpen(false)}
+        />
+      )}
 
     </div>
   );

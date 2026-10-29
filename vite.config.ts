@@ -69,20 +69,26 @@ function vercelBlobDevPlugin(): Plugin {
             try {
               const data = JSON.parse(body);
               let filename = data.filename || `foto-${Date.now()}.jpg`;
-              const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+              let cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+              if (!/\.(jpe?g|png|webp|gif|svg)$/i.test(cleanFilename)) {
+                cleanFilename += '.jpg';
+              }
               let buffer: Buffer;
               let mimeType = data.contentType || 'image/jpeg';
 
-              if (data.dataUrl) {
-                const matches = data.dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
-                if (matches) {
-                  mimeType = matches[1];
-                  buffer = Buffer.from(matches[2], 'base64');
+              if (data.dataUrl && typeof data.dataUrl === 'string') {
+                const commaIdx = data.dataUrl.indexOf(',');
+                if (commaIdx !== -1) {
+                  const metaPart = data.dataUrl.slice(0, commaIdx);
+                  const base64Data = data.dataUrl.slice(commaIdx + 1);
+                  const mimeMatch = metaPart.match(/data:([^;]+);/);
+                  if (mimeMatch) mimeType = mimeMatch[1];
+                  buffer = Buffer.from(base64Data.replace(/[\r\n\s]/g, ''), 'base64');
                 } else {
-                  buffer = Buffer.from(data.dataUrl, 'base64');
+                  buffer = Buffer.from(data.dataUrl.replace(/[\r\n\s]/g, ''), 'base64');
                 }
-              } else if (data.base64) {
-                buffer = Buffer.from(data.base64, 'base64');
+              } else if (data.base64 && typeof data.base64 === 'string') {
+                buffer = Buffer.from(data.base64.replace(/[\r\n\s]/g, ''), 'base64');
               } else {
                 res.statusCode = 400;
                 res.setHeader('Content-Type', 'application/json');
