@@ -814,4 +814,3 @@ export const TESTIMONIALS: Testimonial[] = [
     comment: "João Raimundo me ajudou a encontrar a planta perfeita para a minha família na Jatiúca, a duas quadras da praia. Negociação justa com a construtora e suporte em todas as etapas até o cartório."
   }
 ];
-
