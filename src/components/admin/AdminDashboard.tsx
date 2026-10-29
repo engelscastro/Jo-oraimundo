@@ -544,7 +544,12 @@ export const TESTIMONIALS: Testimonial[] = [
           properties,
           banners,
           brokerInfo,
-          promos
+          promos,
+          githubConfig: {
+            repo: gh.repo,
+            token: gh.token,
+            branch: gh.branch || 'main'
+          }
         };
         const res = await commitFullSiteUpdateToGitHub(catalogPayload, tsCode);
         if (res.success) {
@@ -630,9 +635,21 @@ export const TESTIMONIALS: Testimonial[] = [
     setIsCommittingGitHub(true);
     try {
       const code = generateTSCode();
-      const res = await commitPropertiesTsToGitHub(code);
+      const catalogPayload = {
+        updatedAt: new Date().toISOString(),
+        properties,
+        banners,
+        brokerInfo,
+        promos,
+        githubConfig: {
+          repo: gh.repo,
+          token: gh.token,
+          branch: gh.branch || 'main'
+        }
+      };
+      const res = await commitFullSiteUpdateToGitHub(catalogPayload, code);
       if (res.success) {
-        showNotification('✓ Catálogo commitado no GitHub com sucesso! A Vercel está atualizando o site (~45s).');
+        showNotification('✓ Catálogo commitado no GitHub com sucesso! Seu celular e visitantes receberam as atualizações.');
       } else {
         showNotification(`Erro ao enviar para o GitHub: ${res.error}`);
       }

@@ -14,7 +14,7 @@ import {
   SharedCatalogData 
 } from '../services/siteDataService';
 import { checkVercelBlobStatus, getVercelBlobToken } from '../services/vercelBlobService';
-import { fetchPublishedCatalog } from '../services/githubService';
+import { fetchPublishedCatalog, saveGitHubConfig } from '../services/githubService';
 
 export type BrokerInfoType = typeof INITIAL_BROKER;
 export type PromoBannerType = typeof INITIAL_PROMOS[0];
@@ -159,6 +159,14 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // 1. Tenta buscar o catálogo publicado no GitHub / Vercel public/catalog.json
       const published = await fetchPublishedCatalog();
       if (published) {
+        if (published.githubConfig?.repo && published.githubConfig?.token) {
+          saveGitHubConfig(
+            published.githubConfig.repo,
+            published.githubConfig.token,
+            published.githubConfig.branch || 'main'
+          );
+        }
+
         if (Array.isArray(published.properties) && published.properties.length > 0) {
           setProperties(published.properties);
         }
