@@ -2,7 +2,11 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import {defineConfig, Plugin} from 'vite';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function vercelBlobDevPlugin(): Plugin {
   return {
@@ -305,11 +309,10 @@ export default defineConfig(() => {
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      allowedHosts: ['.onrender.com', 'jo-oraimundo.onrender.com', 'corretoralagoas.com.br', 'www.corretoralagoas.com.br', 'localhost', '127.0.0.1'],
+      allowedHosts: true as const,
     },
     preview: {
-      allowedHosts: ['.onrender.com', 'jo-oraimundo.onrender.com', 'corretoralagoas.com.br', 'www.corretoralagoas.com.br', 'localhost', '127.0.0.1'],
+      allowedHosts: true as const,
     },
   };
 });
