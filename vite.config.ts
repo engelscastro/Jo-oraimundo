@@ -306,10 +306,10 @@ export default defineConfig(() => {
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
-      allowedHosts: ['.onrender.com', 'jo-oraimundo.onrender.com', 'localhost', '127.0.0.1'],
+      allowedHosts: ['.onrender.com', 'jo-oraimundo.onrender.com', 'corretoralagoas.com.br', 'www.corretoralagoas.com.br', 'localhost', '127.0.0.1'],
     },
     preview: {
-      allowedHosts: ['.onrender.com', 'jo-oraimundo.onrender.com', 'localhost', '127.0.0.1'],
+      allowedHosts: ['.onrender.com', 'jo-oraimundo.onrender.com', 'corretoralagoas.com.br', 'www.corretoralagoas.com.br', 'localhost', '127.0.0.1'],
     },
   };
 });

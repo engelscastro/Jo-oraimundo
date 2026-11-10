@@ -113,11 +113,56 @@ export async function fetchCatalogFromSupabase(): Promise<any | null> {
       .from('site_catalog')
       .select('data')
       .eq('id', 1)
-      .single();
+      .maybeSingle();
 
     if (error || !data) return null;
     return data.data;
   } catch {
     return null;
   }
+}
+
+/**
+ * Converte arquivo para Base64 puro / DataURL para armazenamento direto no Supabase
+ */
+export function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Faz upload de imagem para o Supabase Storage (bucket "imoveis-fotos")
+ * com fallback para DataURL direto no banco caso o bucket não exista
+ */
+export async function uploadImageToSupabase(file: File, filename?: string): Promise<{ success: boolean; url: string }> {
+  const client = getSupabaseClient();
+  const cleanName = `${Date.now()}-${(filename || file.name).toLowerCase().replace(/[^a-z0-9.-]/g, '_')}`;
+
+  if (client) {
+    try {
+      const { data, error } = await client.storage
+        .from('imoveis-fotos')
+        .upload(cleanName, file, { cacheControl: '3600', upsert: true });
+
+      if (!error && data) {
+        const { data: publicUrlData } = client.storage
+          .from('imoveis-fotos')
+          .getPublicUrl(cleanName);
+
+        if (publicUrlData?.publicUrl) {
+          return { success: true, url: publicUrlData.publicUrl };
+        }
+      }
+    } catch {
+      // Fallback para DataURL caso o bucket de storage não tenha sido criado
+    }
+  }
+
+  // Fallback: Converte em Base64 DataURL (salvo diretamente dentro do JSON do banco no Supabase)
+  const dataUrl = await fileToDataUrl(file);
+  return { success: true, url: dataUrl };
 }

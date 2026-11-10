@@ -31,7 +31,8 @@ import {
   Globe,
   GitBranch,
   GitCommit,
-  Database
+  Database,
+  LogOut
 } from 'lucide-react';
 import { useRealEstate } from '../../context/RealEstateContext';
 import { Property, BannerSlide, PropertyImage, MACEIO_BAIRROS, MACEIO_BAIRROS_BY_REGION } from '../../data/properties';
@@ -64,6 +65,7 @@ import {
   removeSupabaseConfig,
   testSupabaseConnection,
   saveCatalogToSupabase,
+  uploadImageToSupabase,
   SupabaseConfig
 } from '../../services/supabaseService';
 
@@ -202,6 +204,45 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   // Selected property reference
   const currentProperty = properties.find((p) => p.id === selectedPropertyId) || properties[0];
 
+  // Admin Authentication State: requires user "admin" and password "joaoraimundocorretor"
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('JR_ADMIN_AUTH') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [loginUser, setLoginUser] = useState<string>('');
+  const [loginPass, setLoginPass] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginUser.trim() === 'admin' && loginPass.trim() === 'joaoraimundocorretor') {
+      setIsAuthenticated(true);
+      setLoginError(null);
+      try {
+        sessionStorage.setItem('JR_ADMIN_AUTH', 'true');
+      } catch {
+        // ignore
+      }
+      showNotification('✓ Bem-vindo, João Raimundo! Acesso liberado.');
+    } else {
+      setLoginError('Usuário ou senha incorretos. Apenas o corretor autorizado tem acesso.');
+    }
+  };
+
+  const handleAdminLogout = () => {
+    setIsAuthenticated(false);
+    setLoginPass('');
+    try {
+      sessionStorage.removeItem('JR_ADMIN_AUTH');
+    } catch {
+      // ignore
+    }
+    showNotification('Sessão encerrada com sucesso.');
+  };
+
   const showNotification = (msg: string) => {
     setSaveSuccessNotice(msg);
     setTimeout(() => setSaveSuccessNotice(null), 3500);
@@ -216,7 +257,99 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
 
   if (!isOpen) return null;
 
-  // Upload handler for Vercel Blob
+  // Se não estiver autenticado, exibe tela de login protegida
+  if (!isAuthenticated) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          {/* Header */}
+          <div className="px-6 py-5 bg-slate-900 text-white flex items-center justify-between border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
+                <Lock className="w-5 h-5 text-teal-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Painel do Corretor</h3>
+                <p className="text-xs text-teal-400">Acesso Restrito · João Raimundo</p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              aria-label="Fechar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleAdminLogin} className="p-6 space-y-4">
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Área administrativa para cadastro e edição de imóveis, galerias de fotos, banners e perfil.
+            </p>
+
+            {loginError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 block">Usuário</label>
+              <div className="relative">
+                <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  placeholder="admin"
+                  value={loginUser}
+                  onChange={(e) => setLoginUser(e.target.value)}
+                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 block">Senha de Acesso</label>
+              <div className="relative">
+                <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="password"
+                  required
+                  placeholder="Digite sua senha"
+                  value={loginPass}
+                  onChange={(e) => setLoginPass(e.target.value)}
+                  className="w-full text-xs pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                Voltar ao Site
+              </button>
+
+              <button
+                type="submit"
+                className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-lg shadow-sm transition-all hover:scale-[1.01]"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Entrar no Painel</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Upload handler direcionado ao Supabase (Banco de dados)
   const handleImageUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
     targetId: string,
@@ -225,42 +358,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      showNotification('A imagem é muito grande! Escolha um arquivo de até 10MB.');
+    if (file.size > 15 * 1024 * 1024) {
+      showNotification('A imagem é muito grande! Escolha um arquivo de até 15MB.');
       return;
     }
 
     setUploadingTargetId(targetId);
-    setUploadingMessage('Preparando imagem...');
+    setUploadingMessage('Salvando foto no Supabase...');
 
     try {
-      const gh = getGitHubConfig();
-      if (gh.repo && gh.token) {
-        setUploadingMessage('Commitando foto em public/fotos/ no GitHub...');
-        const ghRes = await uploadPhotoToGitHub(file);
-        if (ghRes.success) {
-          onSuccess(ghRes.url, false);
-          showNotification(`✓ Foto enviada para public/fotos/ no GitHub! A Vercel iniciou a atualização.`);
-          return;
-        } else {
-          console.warn('Falha ao enviar para o GitHub:', ghRes.error);
-          showNotification(`Aviso GitHub: ${ghRes.error}. Salvando localmente.`);
-        }
-      }
-
-      const res = await uploadImageToVercel(file, (msg) => {
-        setUploadingMessage(msg);
-      });
-
-      onSuccess(res.url, res.isVercel);
-
-      if (res.isVercel) {
-        showNotification('Imagem hospedada na Vercel (CDN) com sucesso!');
-        checkVercelBlobStatus().then(setVercelStatus);
-      } else if (res.url.startsWith('/fotos/')) {
-        showNotification('✓ Foto importada e salva na pasta public/fotos do projeto!');
+      const res = await uploadImageToSupabase(file);
+      if (res.success && res.url) {
+        onSuccess(res.url, false);
+        showNotification('✓ Foto carregada e salva com sucesso no banco de dados!');
       } else {
-        showNotification('Foto adicionada com sucesso!');
+        showNotification('Erro ao carregar imagem no Supabase.');
       }
     } catch (err: any) {
       showNotification(err.message || 'Erro ao carregar imagem');
@@ -271,55 +383,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     }
   };
 
-  // Migrate existing dataUrl to GitHub (public/fotos/) or Vercel Blob
+  // Salvar imagem diretamente no Supabase
   const handleMigrateImageToVercel = async (
     dataUrl: string,
     filename: string,
     onSuccess: (newUrl: string) => void
   ) => {
     setUploadingTargetId(`migrate-${filename}`);
+    setUploadingMessage('Salvando foto no banco de dados Supabase...');
 
-    const gh = getGitHubConfig();
-
-    // 1. Se GitHub estiver configurado, envia DIRETO para public/fotos/ no GitHub!
-    if (gh.repo && gh.token) {
-      setUploadingMessage('Commitando foto em public/fotos/ no GitHub...');
-      try {
-        const res = await fetch(dataUrl);
-        const blob = await res.blob();
-        const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-        const ghRes = await uploadPhotoToGitHub(file, filename);
-
-        if (ghRes.success) {
-          onSuccess(ghRes.url);
-          showNotification(`✓ Foto salva em public/fotos/ no GitHub! A Vercel atualizará o site.`);
-          return;
-        } else {
-          showNotification(`Aviso GitHub: ${ghRes.error}`);
-          return;
-        }
-      } catch (err: any) {
-        showNotification('Erro ao enviar para o GitHub: ' + err.message);
-        return;
-      } finally {
-        setUploadingTargetId(null);
-        setUploadingMessage('');
-      }
-    }
-
-    // 2. Se GitHub não estiver configurado, avisa amigavelmente
-    setUploadingMessage('Enviando para a Nuvem...');
     try {
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-      const uploadRes = await uploadImageToVercel(file, setUploadingMessage);
-      if (uploadRes.isVercel) {
-        onSuccess(uploadRes.url);
-        showNotification('Imagem hospedada na Vercel com sucesso!');
-        checkVercelBlobStatus().then(setVercelStatus);
+      const upRes = await uploadImageToSupabase(file, filename);
+
+      if (upRes.success) {
+        onSuccess(upRes.url);
+        showNotification(`✓ Foto salva no banco de dados Supabase com sucesso!`);
       } else {
-        showNotification('Para salvar em public/fotos/, configure a aba "GitHub" com seu repositório e token ghp_!');
+        showNotification(`Erro ao salvar foto no Supabase.`);
       }
     } catch (err: any) {
       showNotification('Erro: ' + err.message);
@@ -698,94 +781,76 @@ export const TESTIMONIALS: Testimonial[] = [
       return;
     }
 
-    const gh = getGitHubConfig();
-    if (gh.repo && gh.token) {
-      setIsBatchMigrating(true);
-      setBatchProgress({ current: 0, total: pendingLocalImagesCount, message: 'Iniciando upload de fotos para o GitHub...' });
+    setIsBatchMigrating(true);
+    setBatchProgress({ current: 0, total: pendingLocalImagesCount, message: 'Iniciando upload de fotos para o banco de dados Supabase...' });
 
-      try {
-        let count = 0;
-        // Banners
-        for (const b of banners) {
-          if (b.imageUrl && b.imageUrl.startsWith('data:')) {
-            setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Enviando banner ${b.title || b.id} para o GitHub...` });
-            const res = await fetch(b.imageUrl);
+    try {
+      let count = 0;
+      // Banners
+      for (const b of banners) {
+        if (b.imageUrl && b.imageUrl.startsWith('data:')) {
+          setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Salvando banner no Supabase...` });
+          const res = await fetch(b.imageUrl);
+          const blob = await res.blob();
+          const file = new File([blob], `banner-${b.id}.jpg`, { type: 'image/jpeg' });
+          const upRes = await uploadImageToSupabase(file, `banner-${b.id}.jpg`);
+          if (upRes.success) {
+            updateBanner({ ...b, imageUrl: upRes.url });
+            count++;
+          }
+        }
+      }
+
+      // Properties
+      for (const p of properties) {
+        let propUpdated = false;
+        const newImages = [...p.images];
+        for (let i = 0; i < newImages.length; i++) {
+          const img = newImages[i];
+          if (img.url && img.url.startsWith('data:')) {
+            setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Salvando foto de ${p.title} no Supabase...` });
+            const res = await fetch(img.url);
             const blob = await res.blob();
-            const file = new File([blob], `banner-${b.id}.jpg`, { type: 'image/jpeg' });
-            const ghRes = await uploadPhotoToGitHub(file, `banner-${b.id}.jpg`);
-            if (ghRes.success) {
-              updateBanner({ ...b, imageUrl: ghRes.url });
+            const file = new File([blob], `prop-${p.code}-${i}.jpg`, { type: 'image/jpeg' });
+            const upRes = await uploadImageToSupabase(file, `prop-${p.code}-${i}.jpg`);
+            if (upRes.success) {
+              newImages[i] = { ...img, url: upRes.url };
+              propUpdated = true;
               count++;
             }
           }
         }
-
-        // Properties
-        for (const p of properties) {
-          let propUpdated = false;
-          const newImages = [...p.images];
-          for (let i = 0; i < newImages.length; i++) {
-            const img = newImages[i];
-            if (img.url && img.url.startsWith('data:')) {
-              setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Enviando foto de ${p.title} para o GitHub...` });
-              const res = await fetch(img.url);
-              const blob = await res.blob();
-              const file = new File([blob], `prop-${p.code}-${i}.jpg`, { type: 'image/jpeg' });
-              const ghRes = await uploadPhotoToGitHub(file, `prop-${p.code}-${i}.jpg`);
-              if (ghRes.success) {
-                newImages[i] = { ...img, url: ghRes.url };
-                propUpdated = true;
-                count++;
-              }
-            }
-          }
-          if (propUpdated) {
-            updateProperty({ ...p, images: newImages });
-          }
+        if (propUpdated) {
+          updateProperty({ ...p, images: newImages });
         }
+      }
 
-        // Broker
-        if (brokerInfo.avatarUrl && brokerInfo.avatarUrl.startsWith('data:')) {
-          setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: 'Enviando foto do corretor para o GitHub...' });
-          const res = await fetch(brokerInfo.avatarUrl);
-          const blob = await res.blob();
-          const file = new File([blob], 'joao-raimundo-corretor.jpg', { type: 'image/jpeg' });
-          const ghRes = await uploadPhotoToGitHub(file, 'joao-raimundo-corretor.jpg');
-          if (ghRes.success) {
-            updateBroker({ avatarUrl: ghRes.url });
-            count++;
-          }
+      // Broker
+      if (brokerInfo.avatarUrl && brokerInfo.avatarUrl.startsWith('data:')) {
+        setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: 'Salvando foto do corretor no Supabase...' });
+        const res = await fetch(brokerInfo.avatarUrl);
+        const blob = await res.blob();
+        const file = new File([blob], 'joao-raimundo-corretor.jpg', { type: 'image/jpeg' });
+        const upRes = await uploadImageToSupabase(file, 'joao-raimundo-corretor.jpg');
+        if (upRes.success) {
+          updateBroker({ avatarUrl: upRes.url });
+          count++;
         }
-
-        // Commita properties.ts atualizado
-        setBatchProgress({ current: count, total: pendingLocalImagesCount, message: 'Atualizando catálogo no GitHub...' });
-        const tsCode = generateTSCode();
-        await commitPropertiesTsToGitHub(tsCode);
-
-        showNotification(`✓ ${count} foto(s) enviadas com sucesso para public/fotos/ no GitHub! A Vercel atualizará o site.`);
-      } catch (err: any) {
-        showNotification('Erro ao enviar fotos para o GitHub: ' + err.message);
-      } finally {
-        setIsBatchMigrating(false);
-        setBatchProgress(null);
       }
-      return;
-    }
 
-    // Se GitHub não configurado, tenta Vercel Blob
-    setIsBatchMigrating(true);
-    setBatchProgress({ current: 0, total: pendingLocalImagesCount, message: 'Iniciando upload de fotos...' });
-    try {
-      const res = await migratePendingImages((curr, tot, msg) => {
-        setBatchProgress({ current: curr, total: tot, message: msg });
-      });
-      if (res.migratedCount > 0) {
-        showNotification(`Sucesso! ${res.migratedCount} foto(s) migradas.`);
-      } else {
-        showNotification('Configure o repositório e o token na aba "GitHub" para enviar para public/fotos/.');
-      }
+      // Sincroniza catálogo no Supabase
+      const payload = {
+        updatedAt: new Date().toISOString(),
+        properties,
+        banners,
+        brokerInfo,
+        promos
+      };
+      await saveCatalogToSupabase(payload);
+
+      showNotification(`✓ ${count} foto(s) migradas e salvas com sucesso no Supabase!`);
     } catch (err: any) {
-      showNotification('Erro: ' + err.message);
+      showNotification('Erro ao salvar fotos no Supabase: ' + err.message);
     } finally {
       setIsBatchMigrating(false);
       setBatchProgress(null);
@@ -838,6 +903,15 @@ export const TESTIMONIALS: Testimonial[] = [
                 <span>{saveSuccessNotice}</span>
               </div>
             )}
+
+            <button
+              onClick={handleAdminLogout}
+              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors"
+              title="Sair do painel administrativo"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
 
             <button
               onClick={onClose}
@@ -904,60 +978,18 @@ export const TESTIMONIALS: Testimonial[] = [
               type="button"
               onClick={handleSaveCodeToDisk}
               disabled={isSavingCode}
-              className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
-              title={githubConfig.repo && githubConfig.token ? "Comunica as alterações diretamente para o GitHub para a Vercel atualizar o site em todos os celulares" : "Grava todos os imóveis e fotos diretamente no código do site (src/data/properties.ts)"}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
+              title="Salva e publica todas as alterações no banco de dados Supabase para atualizar imediatamente o site"
             >
               {isSavingCode ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Publicando...</span>
+                  <span>Publicando no Banco...</span>
                 </>
               ) : (
                 <>
-                  <GitCommit className="w-3.5 h-3.5 text-emerald-200" />
-                  <span>{githubConfig.repo && githubConfig.token ? 'Publicar no Site (GitHub / Vercel)' : 'Gravar no Código (properties.ts)'}</span>
-                </>
-              )}
-            </button>
-
-            {githubConfig.repo && githubConfig.token && (
-              <button
-                type="button"
-                onClick={handleCommitAllToGitHub}
-                disabled={isCommittingGitHub}
-                className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 hover:bg-slate-700 text-teal-300 border border-teal-500/40 rounded-lg font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
-                title="Commitar dados e propriedades diretamente no GitHub para atualizar celulares e computadores"
-              >
-                {isCommittingGitHub ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Commitando no GitHub...</span>
-                  </>
-                ) : (
-                  <>
-                    <GitCommit className="w-3.5 h-3.5 text-teal-400" />
-                    <span>Commitar no GitHub</span>
-                  </>
-                )}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleManualSyncToCloud}
-              disabled={isManualSyncing || cloudSync.isSyncing}
-              className="flex items-center gap-1.5 px-3 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded-lg font-bold text-xs transition-colors shadow-sm disabled:opacity-50"
-              title="Salva o catálogo completo na Nuvem Vercel para carregar no celular e em outros computadores"
-            >
-              {isManualSyncing || cloudSync.isSyncing ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Sincronizando...</span>
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Publicar p/ Celular</span>
+                  <Database className="w-3.5 h-3.5 text-emerald-200" />
+                  <span>Salvar no Banco (Supabase)</span>
                 </>
               )}
             </button>
@@ -1003,23 +1035,6 @@ export const TESTIMONIALS: Testimonial[] = [
           </button>
 
           <button
-            onClick={() => setActiveTab('github')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
-              activeTab === 'github'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <GitCommit className="w-4 h-4 text-teal-600" />
-            <span>GitHub (public/fotos)</span>
-            <span
-              className={`w-2 h-2 rounded-full ${
-                githubConfig.repo && githubConfig.token ? 'bg-emerald-500' : 'bg-slate-300'
-              }`}
-            />
-          </button>
-
-          <button
             onClick={() => setActiveTab('supabase')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${
               activeTab === 'supabase'
@@ -1028,7 +1043,7 @@ export const TESTIMONIALS: Testimonial[] = [
             }`}
           >
             <Database className="w-4 h-4 text-teal-600" />
-            <span>Supabase &amp; Render</span>
+            <span>Banco de Dados (Supabase)</span>
             <span
               className={`w-2 h-2 rounded-full ${
                 supabaseConfig.url && supabaseConfig.anonKey ? 'bg-emerald-500' : 'bg-slate-300'
