@@ -159,10 +159,8 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
       // 0. Tenta carregar do Supabase primeiro (banco de dados relacional principal)
       const sbData = await fetchCatalogFromSupabase();
-      if (sbData) {
-        if (Array.isArray(sbData.properties) && sbData.properties.length > 0) {
-          setProperties(sbData.properties);
-        }
+      if (sbData && Array.isArray(sbData.properties) && sbData.properties.length > 0) {
+        setProperties(sbData.properties);
         if (Array.isArray(sbData.banners) && sbData.banners.length > 0) {
           setBanners(sbData.banners);
         }
@@ -176,6 +174,9 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const syncTime = sbData.updatedAt || new Date().toISOString();
         try {
           localStorage.setItem(STORAGE_KEYS.LAST_CLOUD_SYNC, syncTime);
+          localStorage.setItem(STORAGE_KEYS.PROPERTIES, JSON.stringify(sbData.properties));
+          if (sbData.banners) localStorage.setItem(STORAGE_KEYS.BANNERS, JSON.stringify(sbData.banners));
+          if (sbData.brokerInfo) localStorage.setItem(STORAGE_KEYS.BROKER, JSON.stringify(sbData.brokerInfo));
         } catch {
           // ignore
         }
@@ -189,6 +190,41 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           error: null
         }));
         return true;
+      } else {
+        // Se o Supabase estiver vazio, mas este navegador possuir dados salvos no localStorage
+        // (por exemplo: o corretor adicionou fotos e imóveis acessando jo-oraimundo.onrender.com),
+        // enviamos esses dados locais para o Supabase imediatamente para compartilhar entre todos os domínios!
+        try {
+          const savedPropsRaw = localStorage.getItem(STORAGE_KEYS.PROPERTIES);
+          const savedBannersRaw = localStorage.getItem(STORAGE_KEYS.BANNERS);
+          const savedBrokerRaw = localStorage.getItem(STORAGE_KEYS.BROKER);
+          if (savedPropsRaw) {
+            const localProps = JSON.parse(savedPropsRaw);
+            const localBanners = savedBannersRaw ? JSON.parse(savedBannersRaw) : banners;
+            const localBroker = savedBrokerRaw ? JSON.parse(savedBrokerRaw) : brokerInfo;
+            if (Array.isArray(localProps) && localProps.length > 0) {
+              const uploadPayload: SharedCatalogData = {
+                updatedAt: new Date().toISOString(),
+                properties: localProps,
+                banners: localBanners,
+                brokerInfo: localBroker,
+                promos
+              };
+              saveCatalogToSupabase(uploadPayload).then(sbRes => {
+                if (sbRes.success) {
+                  setCloudSync(prev => ({
+                    ...prev,
+                    isConfigured: true,
+                    isCloudLoaded: true,
+                    lastSyncedAt: uploadPayload.updatedAt || new Date().toISOString()
+                  }));
+                }
+              });
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
 
       // 1. Tenta buscar o catálogo publicado no GitHub / Vercel public/catalog.json
@@ -287,7 +323,7 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }));
       return false;
     }
-  }, []);
+  }, [banners, brokerInfo, promos]);
 
   // Sync current data to Supabase and Vercel Cloud
   const syncToCloud = useCallback(async (): Promise<boolean> => {
@@ -368,7 +404,7 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setBanners(res.banners);
         
         // Save immediately to cloud
-        await saveSharedCatalog({
+        await saveCatalogToSupabase({
           updatedAt: new Date().toISOString(),
           properties: res.properties,
           banners: res.banners,
@@ -412,27 +448,24 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [loadFromCloud]);
 
-  // Auto-sync debounced helper
+  // Auto-sync debounced helper to Supabase
   const scheduleAutoSync = useCallback(() => {
-    const token = getVercelBlobToken();
-    if (!token || token.startsWith('ghp_') || token.startsWith('github_pat_')) {
-      // Modo frontend estático / GitHub: não faz chamadas de nuvem Vercel Blob
-      return;
-    }
     if (autoSyncTimeoutRef.current) {
       clearTimeout(autoSyncTimeoutRef.current);
     }
-    autoSyncTimeoutRef.current = setTimeout(() => {
-      // Auto-sync in background after 2 seconds of inactivity
-      saveSharedCatalog({
+    autoSyncTimeoutRef.current = setTimeout(async () => {
+      const payload: SharedCatalogData = {
         updatedAt: new Date().toISOString(),
         properties,
         banners,
         brokerInfo,
         promos
-      }).then(res => {
-        if (res.success) {
-          const syncTime = res.uploadedAt || new Date().toISOString();
+      };
+
+      try {
+        const sbRes = await saveCatalogToSupabase(payload);
+        if (sbRes.success) {
+          const syncTime = payload.updatedAt || new Date().toISOString();
           try {
             localStorage.setItem(STORAGE_KEYS.LAST_CLOUD_SYNC, syncTime);
           } catch {
@@ -444,11 +477,36 @@ export const RealEstateProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             lastSyncedAt: syncTime,
             error: null
           }));
+          return;
         }
-      }).catch(() => {
-        // quiet failure on background autosync
-      });
-    }, 2000);
+      } catch (err) {
+        console.warn('Falha no auto-sync Supabase:', err);
+      }
+
+      // Fallback para Vercel se configurado
+      const token = getVercelBlobToken();
+      if (token && !token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        try {
+          const res = await saveSharedCatalog(payload);
+          if (res.success) {
+            const syncTime = res.uploadedAt || new Date().toISOString();
+            try {
+              localStorage.setItem(STORAGE_KEYS.LAST_CLOUD_SYNC, syncTime);
+            } catch {
+              // ignore
+            }
+            setCloudSync(prev => ({
+              ...prev,
+              isConfigured: true,
+              lastSyncedAt: syncTime,
+              error: null
+            }));
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }, 1500);
   }, [properties, banners, brokerInfo, promos]);
 
   // Save to localStorage whenever state changes & trigger background sync

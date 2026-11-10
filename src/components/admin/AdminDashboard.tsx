@@ -777,7 +777,7 @@ export const TESTIMONIALS: Testimonial[] = [
 
   const handleBatchMigrateAll = async () => {
     if (pendingLocalImagesCount === 0) {
-      showNotification('Todas as fotos já estão salvas permanentemente!');
+      showNotification('Todas as fotos já estão salvas permanentemente no Supabase!');
       return;
     }
 
@@ -786,8 +786,13 @@ export const TESTIMONIALS: Testimonial[] = [
 
     try {
       let count = 0;
+      let updatedBanners = [...banners];
+      let updatedProperties = [...properties];
+      let updatedBroker = { ...brokerInfo };
+
       // Banners
-      for (const b of banners) {
+      for (let i = 0; i < updatedBanners.length; i++) {
+        const b = updatedBanners[i];
         if (b.imageUrl && b.imageUrl.startsWith('data:')) {
           setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: `Salvando banner no Supabase...` });
           const res = await fetch(b.imageUrl);
@@ -795,6 +800,7 @@ export const TESTIMONIALS: Testimonial[] = [
           const file = new File([blob], `banner-${b.id}.jpg`, { type: 'image/jpeg' });
           const upRes = await uploadImageToSupabase(file, `banner-${b.id}.jpg`);
           if (upRes.success) {
+            updatedBanners[i] = { ...b, imageUrl: upRes.url };
             updateBanner({ ...b, imageUrl: upRes.url });
             count++;
           }
@@ -802,7 +808,8 @@ export const TESTIMONIALS: Testimonial[] = [
       }
 
       // Properties
-      for (const p of properties) {
+      for (let pIdx = 0; pIdx < updatedProperties.length; pIdx++) {
+        const p = updatedProperties[pIdx];
         let propUpdated = false;
         const newImages = [...p.images];
         for (let i = 0; i < newImages.length; i++) {
@@ -821,29 +828,31 @@ export const TESTIMONIALS: Testimonial[] = [
           }
         }
         if (propUpdated) {
+          updatedProperties[pIdx] = { ...p, images: newImages };
           updateProperty({ ...p, images: newImages });
         }
       }
 
       // Broker
-      if (brokerInfo.avatarUrl && brokerInfo.avatarUrl.startsWith('data:')) {
+      if (updatedBroker.avatarUrl && updatedBroker.avatarUrl.startsWith('data:')) {
         setBatchProgress({ current: count + 1, total: pendingLocalImagesCount, message: 'Salvando foto do corretor no Supabase...' });
-        const res = await fetch(brokerInfo.avatarUrl);
+        const res = await fetch(updatedBroker.avatarUrl);
         const blob = await res.blob();
         const file = new File([blob], 'joao-raimundo-corretor.jpg', { type: 'image/jpeg' });
         const upRes = await uploadImageToSupabase(file, 'joao-raimundo-corretor.jpg');
         if (upRes.success) {
+          updatedBroker = { ...updatedBroker, avatarUrl: upRes.url };
           updateBroker({ avatarUrl: upRes.url });
           count++;
         }
       }
 
-      // Sincroniza catálogo no Supabase
+      // Sincroniza catálogo no Supabase com os dados atualizados!
       const payload = {
         updatedAt: new Date().toISOString(),
-        properties,
-        banners,
-        brokerInfo,
+        properties: updatedProperties,
+        banners: updatedBanners,
+        brokerInfo: updatedBroker,
         promos
       };
       await saveCatalogToSupabase(payload);
@@ -878,23 +887,16 @@ export const TESTIMONIALS: Testimonial[] = [
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Vercel Status Indicator */}
+            {/* Supabase Status Indicator & Sync */}
             <button
-              onClick={() => setActiveTab('vercel')}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                vercelStatus.configured
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20'
-                  : 'bg-amber-500/10 text-amber-300 border-amber-500/30 hover:bg-amber-500/20'
-              }`}
-              title="Gerenciar Hospedagem Vercel Blob & Sincronização"
+              onClick={handleSaveCodeToDisk}
+              disabled={isSavingCode}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border bg-teal-500/10 text-teal-300 border-teal-500/30 hover:bg-teal-500/20 transition-all"
+              title="Sincronizar e salvar todas as fotos e imóveis no banco de dados Supabase"
             >
-              <Cloud className="w-3.5 h-3.5 text-teal-400" />
-              <span>{vercelStatus.configured ? 'Vercel CDN Ativo' : 'Vercel: Conectar'}</span>
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  vercelStatus.configured ? 'bg-emerald-400' : 'bg-amber-400 animate-pulse'
-                }`}
-              />
+              <Database className={`w-3.5 h-3.5 text-teal-400 ${isSavingCode ? 'animate-spin' : ''}`} />
+              <span>{isSavingCode ? 'Sincronizando...' : 'Banco Supabase Conectado'}</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </button>
 
             {saveSuccessNotice && (
@@ -928,24 +930,20 @@ export const TESTIMONIALS: Testimonial[] = [
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                cloudSync.isSyncing || isManualSyncing
+                cloudSync.isSyncing || isManualSyncing || isSavingCode
                   ? 'bg-amber-400 animate-ping'
-                  : vercelStatus.configured
-                  ? 'bg-emerald-400'
-                  : 'bg-amber-400'
+                  : 'bg-emerald-400'
               }`}
             />
             <div className="min-w-0">
               <span className="font-semibold text-white">
-                {cloudSync.isSyncing || isManualSyncing
-                  ? 'Sincronizando...'
-                  : vercelStatus.configured
-                  ? 'Nuvem Vercel Conectada (Fotos e dados na CDN)'
-                  : 'Modo Frontend (Sem Banco de Dados): Fotos salvas diretamente no site'}
+                {cloudSync.isSyncing || isManualSyncing || isSavingCode
+                  ? 'Sincronizando com o Supabase...'
+                  : 'Banco de Dados Supabase Ativo (Sincronizado entre corretoralagoas.com.br e Render)'}
               </span>
               {cloudSync.lastSyncedAt && (
                 <span className="hidden md:inline text-slate-400 text-[11px] ml-2">
-                  (Última atualização: {new Date(cloudSync.lastSyncedAt).toLocaleTimeString('pt-BR')})
+                  (Última sincronização: {new Date(cloudSync.lastSyncedAt).toLocaleTimeString('pt-BR')})
                 </span>
               )}
             </div>
@@ -958,7 +956,7 @@ export const TESTIMONIALS: Testimonial[] = [
                 onClick={handleBatchMigrateAll}
                 disabled={isBatchMigrating}
                 className="flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 rounded-lg font-bold text-xs transition-colors"
-                title="Fotos salvas na memória local deste navegador. Clique para enviar para a CDN da Vercel."
+                title="Fotos salvas na memória local deste navegador. Clique para enviar para o Supabase."
               >
                 {isBatchMigrating ? (
                   <>
@@ -968,7 +966,7 @@ export const TESTIMONIALS: Testimonial[] = [
                 ) : (
                   <>
                     <CloudUpload className="w-3.5 h-3.5 text-amber-300" />
-                    <span>Migrar {pendingLocalImagesCount} fotos p/ Nuvem</span>
+                    <span>Salvar {pendingLocalImagesCount} fotos no Supabase</span>
                   </>
                 )}
               </button>
@@ -979,7 +977,7 @@ export const TESTIMONIALS: Testimonial[] = [
               onClick={handleSaveCodeToDisk}
               disabled={isSavingCode}
               className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs transition-colors shadow-sm"
-              title="Salva e publica todas as alterações no banco de dados Supabase para atualizar imediatamente o site"
+              title="Salva e publica todas as alterações no banco de dados Supabase para atualizar imediatamente o site corretoralagoas.com.br"
             >
               {isSavingCode ? (
                 <>
@@ -989,7 +987,7 @@ export const TESTIMONIALS: Testimonial[] = [
               ) : (
                 <>
                   <Database className="w-3.5 h-3.5 text-emerald-200" />
-                  <span>Salvar no Banco (Supabase)</span>
+                  <span>Publicar no Banco (Supabase)</span>
                 </>
               )}
             </button>
