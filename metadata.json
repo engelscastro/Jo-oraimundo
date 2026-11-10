@@ -1,0 +1,6 @@
+{
+  "name": "João Raimundo | Corretor de Imóveis em Maceió - AL",
+  "description": "Encontre os melhores apartamentos e lançamentos imobiliários em Maceió com João Raimundo. Consultoria especializada de alto padrão em Ponta Verde, Jatiúca e Pajuçara.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
